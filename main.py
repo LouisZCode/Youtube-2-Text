@@ -1,6 +1,9 @@
-def main():
-    print("Hello from youtube-2-text!")
+from fastapi import FastAPI
+
+app = FastAPI()
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/health/")
+def check_health():
+    return {"status" : "ok"}
+

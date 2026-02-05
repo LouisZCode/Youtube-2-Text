@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.128.1",
+    "uvicorn>=0.40.0",
     "youtube-transcript-api>=1.2.4",
     "yt-dlp>=2026.1.31",
 ]
