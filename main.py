@@ -1,6 +1,9 @@
 from fastapi import FastAPI
+from fastapi.responses import Response
+from fpdf import FPDF
 import os
 import re
+import tempfile
 
 from dotenv import load_dotenv
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -106,37 +109,35 @@ def check_health():
     return {"status" : "ok"}
 
 
-@app.post("/video/")
-async def test_transcript_api(video_url : str, language : str):
-
-    VIDEO_ID = _extract_video_id(video_url)
+def _get_transcript(video_url: str, language: str) -> dict:
+    """Run captions → audio fallback and return transcript data."""
+    video_id = _extract_video_id(video_url)
     ytt_api = YouTubeTranscriptApi()
 
     # Try captions first
     try:
-        transcript_list = ytt_api.list(VIDEO_ID)
+        transcript_list = ytt_api.list(video_id)
         available_codes = [t.language_code for t in transcript_list]
 
         if language in available_codes:
-            transcript = ytt_api.fetch(VIDEO_ID, languages=[language])
+            transcript = ytt_api.fetch(video_id, languages=[language])
             snippets = transcript.snippets
             segments = _merge_segments(snippets)
 
             return {
-                "success": True,
-                "video_id": VIDEO_ID,
+                "video_id": video_id,
                 "source": "captions",
                 "language": language,
                 "segments": segments,
-                "word_count": sum(len(s.text.split()) for s in snippets)
+                "word_count": sum(len(s.text.split()) for s in snippets),
             }
     except Exception as e:
         # Captions not available (disabled, etc.) — fall through to audio
         print(f"  Captions unavailable: {type(e).__name__}: {e}")
-    
+
     # Fallback: Download audio and transcribe with Deepgram
-    try:
-        output_path = f"data/{VIDEO_ID}"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = os.path.join(tmpdir, video_id)
         ydl_opts = {
             "format": "bestaudio/best",
             "postprocessors": [
@@ -155,19 +156,46 @@ async def test_transcript_api(video_url : str, language : str):
             ydl.extract_info(video_url, download=True)
 
         mp3_file = f"{output_path}.mp3"
-
-        # Transcribe with Deepgram
         segments, word_count = _transcribe_with_deepgram(mp3_file)
 
-        return {
-            "success": True,
-            "video_id": VIDEO_ID,
-            "source": "audio_transcription",
-            "language": language,
-            "segments": segments,
-            "word_count": word_count
-        }
+    return {
+        "video_id": video_id,
+        "source": "audio_transcription",
+        "language": language,
+        "segments": segments,
+        "word_count": word_count,
+    }
 
+
+def _build_pdf(segments: list[dict]) -> bytes:
+    """Build a PDF with timestamped transcript segments."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+    for seg in segments:
+        pdf.multi_cell(0, 6, f'{seg["timestamp"]} {seg["text"]}')
+        pdf.ln(2)
+    return bytes(pdf.output())
+
+
+@app.post("/video/")
+async def get_video_transcript(video_url: str, language: str):
+    try:
+        result = _get_transcript(video_url, language)
+        return {"success": True, **result}
     except Exception as e:
         print(f"  FAILED: {type(e).__name__}: {e}")
         return {"success": False, "error": str(e)}
+
+
+@app.post("/video/pdf/")
+async def get_video_pdf(video_url: str, language: str):
+    result = _get_transcript(video_url, language)
+    pdf_bytes = _build_pdf(result["segments"])
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{result["video_id"]}.pdf"'
+        },
+    )
