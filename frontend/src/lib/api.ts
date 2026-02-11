@@ -7,9 +7,13 @@ export async function fetchTranscript(
   language: string = "en"
 ): Promise<TranscriptResponse> {
   const params = new URLSearchParams({ video_url: videoUrl, language });
-  const res = await fetch(`${API_URL}/video/?${params}`, { method: "POST" });
+  const res = await fetch(`${API_URL}/video/?${params}`, { method: "POST", credentials: "include" });
 
   if (!res.ok) {
+    if (res.status === 429) {
+      const body = await res.json();
+      throw new Error(body.detail || "Free usage limit reached");
+    }
     throw new Error(`Server error: ${res.status}`);
   }
 
@@ -21,7 +25,7 @@ export async function fetchTranscriptPremium(
   language: string = "en"
 ): Promise<TranscriptResponse> {
   const params = new URLSearchParams({ video_url: videoUrl, language });
-  const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST" });
+  const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST", credentials: "include" });
 
   if (!res.ok) {
     throw new Error(`Server error: ${res.status}`);
@@ -35,6 +39,7 @@ export async function fetchSummary(transcription: string): Promise<SummaryRespon
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transcription }),
+    credentials: "include",
   });
   if (!res.ok) throw new Error(`Summary failed: ${res.status}`);
   return res.json();
@@ -49,6 +54,7 @@ export async function fetchTranslationStream(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ segments, language }),
+    credentials: "include",
   });
   if (!res.ok) throw new Error(`Translation failed: ${res.status}`);
 
@@ -79,6 +85,7 @@ export async function downloadPdf(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ segments }),
+    credentials: "include",
   });
 
   if (!res.ok) {
