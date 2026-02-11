@@ -1,20 +1,25 @@
 from dotenv import load_dotenv
+from cerebras.cloud.sdk import AsyncCerebras
+import os
 import yaml
-
-from langchain.agents import create_agent
 
 load_dotenv()
 
 def load_prompts():
-    """Load all prompts from prompts.yaml file"""
     with open("agents/prompts.yaml", "r", encoding="utf-8") as f:
-        prompts = yaml.safe_load(f)
-    return prompts
+        return yaml.safe_load(f)
 
 prompts = load_prompts()
 translate_prompt = prompts["TRANSLATE_PROMPT"]
 
-translate_agent = create_agent(
-    model="openai:gpt-5-mini",
-    system_prompt=translate_prompt
-)
+client = AsyncCerebras(api_key=os.environ.get("CEREBRAS_API_KEY"))
+
+async def translate(text: str, language: str) -> str:
+    response = await client.chat.completions.create(
+        model="llama-3.3-70b",
+        messages=[
+            {"role": "system", "content": translate_prompt},
+            {"role": "user", "content": f"Translate the following to {language}:\n\n{text}"},
+        ],
+    )
+    return response.choices[0].message.content

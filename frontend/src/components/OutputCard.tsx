@@ -1,9 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TranscriptResult, Mode } from "@/lib/types";
 import { downloadPdf } from "@/lib/api";
 import { ClipboardIcon, DownloadIcon, CheckIcon } from "./icons";
+
+function useTypewriter(text: string, charsPerFrame = 2): string {
+  const [displayed, setDisplayed] = useState("");
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    if (text.length === 0) {
+      indexRef.current = 0;
+      setDisplayed("");
+      return;
+    }
+    if (indexRef.current >= text.length) return;
+
+    let rafId: number;
+    const tick = () => {
+      indexRef.current = Math.min(indexRef.current + charsPerFrame, text.length);
+      setDisplayed(text.slice(0, indexRef.current));
+      if (indexRef.current < text.length) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(rafId);
+  }, [text, charsPerFrame]);
+
+  return displayed;
+}
 
 interface OutputCardProps {
   result: TranscriptResult;
@@ -15,6 +43,8 @@ interface OutputCardProps {
 
 export default function OutputCard({ result, mode, loading, summary, translation }: OutputCardProps) {
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const userScrolledRef = useRef(false);
 
   const isSummaryMode = mode === "summary";
   const isTranslateMode = mode === "translate";
@@ -26,7 +56,23 @@ export default function OutputCard({ result, mode, loading, summary, translation
     .join("\n\n");
 
   const llmText = isSummaryMode ? (summary ?? "") : isTranslateMode ? (translation ?? "") : "";
+  const typedText = useTypewriter(translation ?? "", 6);
+  const visibleLlmText = isTranslateMode ? typedText : llmText;
   const displayText = isLlmMode ? llmText : fullText;
+
+  // Reset user-scrolled flag when a new translation starts
+  useEffect(() => {
+    if (isTranslateMode && loading) {
+      userScrolledRef.current = false;
+    }
+  }, [isTranslateMode, loading]);
+
+  // Auto-scroll while typewriter is running, unless user scrolled
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !isTranslateMode || userScrolledRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [visibleLlmText, isTranslateMode]);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(displayText);
@@ -93,10 +139,21 @@ export default function OutputCard({ result, mode, loading, summary, translation
       )}
 
       {/* Content */}
-      <div className="max-h-[480px] overflow-y-auto px-5 py-4">
+      <div
+        ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
+          userScrolledRef.current = !atBottom;
+        }}
+        className="max-h-[480px] overflow-y-auto px-5 py-4"
+      >
         {isLlmMode ? (
           <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {llmText}
+            {visibleLlmText}
+            {isTranslateMode && loading && (
+              <span className="animate-pulse text-text-secondary"> ...</span>
+            )}
           </div>
         ) : (
           <div className="space-y-4 font-mono text-sm leading-relaxed">

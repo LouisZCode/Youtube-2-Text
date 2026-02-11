@@ -27,4 +27,9 @@ export interface TranslateResponse {
   translation: string;
 }
 
+export interface TranslateChunkEvent {
+  translation?: string;
+  done?: boolean;
+}
+
 export type Mode = "transcription" | "pro" | "summary" | "translate";

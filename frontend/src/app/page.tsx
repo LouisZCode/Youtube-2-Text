@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TranscriptResult, Mode } from "@/lib/types";
-import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslation } from "@/lib/api";
+import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream } from "@/lib/api";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import OutputCard from "@/components/OutputCard";
@@ -45,11 +45,12 @@ export default function Home() {
         setSummary(summaryData.summary);
       }
 
-      // Translate mode: chain a translation call after getting the transcript
+      // Translate mode: stream translation chunks progressively
       if (mode === "translate") {
-        const transcription = data.segments.map((s) => s.text).join(" ");
-        const translateData = await fetchTranslation(transcription, language);
-        setTranslation(translateData.translation);
+        setTranslation("");
+        await fetchTranslationStream(data.segments, language, (chunk) => {
+          setTranslation((prev) => (prev || "") + chunk + "\n\n");
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

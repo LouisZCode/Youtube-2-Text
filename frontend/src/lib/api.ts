@@ -1,4 +1,4 @@
-import { TranscriptResponse, SummaryResponse, TranslateResponse } from "./types";
+import { TranscriptResponse, SummaryResponse, TranslateResponse, Segment, TranslateChunkEvent } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -40,14 +40,36 @@ export async function fetchSummary(transcription: string): Promise<SummaryRespon
   return res.json();
 }
 
-export async function fetchTranslation(transcription: string, language: string): Promise<TranslateResponse> {
+export async function fetchTranslationStream(
+  segments: Segment[],
+  language: string,
+  onChunk: (text: string) => void,
+): Promise<void> {
   const res = await fetch(`${API_URL}/video/translate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcription, language }),
+    body: JSON.stringify({ segments, language }),
   });
   if (!res.ok) throw new Error(`Translation failed: ${res.status}`);
-  return res.json();
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data: ")) continue;
+      const event: TranslateChunkEvent = JSON.parse(line.slice(6));
+      if (event.done) return;
+      if (event.translation) onChunk(event.translation);
+    }
+  }
 }
 
 export async function downloadPdf(
