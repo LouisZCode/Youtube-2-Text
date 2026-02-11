@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TranscriptResult } from "@/lib/types";
-import { fetchTranscript } from "@/lib/api";
+import { TranscriptResult, Mode } from "@/lib/types";
+import { fetchTranscript, fetchTranscriptPremium, fetchSummary } from "@/lib/api";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import OutputCard from "@/components/OutputCard";
@@ -10,9 +10,11 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<Mode>("transcription");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TranscriptResult | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
 
   async function handleSubmit() {
     if (!url.trim()) return;
@@ -20,13 +22,24 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSummary(null);
 
     try {
-      const data = await fetchTranscript(url);
-      if (data.success) {
-        setResult(data);
-      } else {
+      const fetcher = mode === "pro" ? fetchTranscriptPremium : fetchTranscript;
+      const data = await fetcher(url);
+
+      if (!data.success) {
         setError(data.error);
+        return;
+      }
+
+      setResult(data);
+
+      // Summary mode: chain a summary call after getting the transcript
+      if (mode === "summary") {
+        const transcription = data.segments.map((s) => s.text).join(" ");
+        const summaryData = await fetchSummary(transcription);
+        setSummary(summaryData.summary);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -43,7 +56,9 @@ export default function Home() {
         <Hero
           url={url}
           loading={loading}
+          mode={mode}
           onUrlChange={setUrl}
+          onModeChange={setMode}
           onSubmit={handleSubmit}
         />
 
@@ -53,7 +68,14 @@ export default function Home() {
           </div>
         )}
 
-        {result && <OutputCard result={result} url={url} loading={loading} />}
+        {result && (
+          <OutputCard
+            result={result}
+            mode={mode}
+            loading={loading}
+            summary={summary}
+          />
+        )}
       </main>
 
       <Footer />

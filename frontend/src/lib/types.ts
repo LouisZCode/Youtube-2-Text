@@ -22,3 +22,5 @@ export type TranscriptResponse = TranscriptResult | TranscriptError;
 export interface SummaryResponse {
   summary: string;
 }
+
+export type Mode = "transcription" | "pro" | "summary";

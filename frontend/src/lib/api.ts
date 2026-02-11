@@ -16,6 +16,20 @@ export async function fetchTranscript(
   return res.json();
 }
 
+export async function fetchTranscriptPremium(
+  videoUrl: string,
+  language: string = "en"
+): Promise<TranscriptResponse> {
+  const params = new URLSearchParams({ video_url: videoUrl, language });
+  const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST" });
+
+  if (!res.ok) {
+    throw new Error(`Server error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function fetchSummary(transcription: string): Promise<SummaryResponse> {
   const res = await fetch(`${API_URL}/video/summary`, {
     method: "POST",
