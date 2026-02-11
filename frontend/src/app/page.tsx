@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import { TranscriptResult, Mode } from "@/lib/types";
-import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream } from "@/lib/api";
+import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf } from "@/lib/api";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import OutputCard from "@/components/OutputCard";
+import PremiumUpsell from "@/components/PremiumUpsell";
+import ErrorModal from "@/components/ErrorModal";
 import Footer from "@/components/Footer";
+
+const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
+
+const languages = ["Spanish", "Portuguese", "German", "French"];
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -17,15 +23,24 @@ export default function Home() {
   const [summary, setSummary] = useState<string | null>(null);
   const [translation, setTranslation] = useState<string | null>(null);
   const [language, setLanguage] = useState("Spanish");
+  const [elapsed, setElapsed] = useState<number | null>(null);
 
   async function handleSubmit() {
     if (!url.trim()) return;
+
+    if (!YT_URL_RE.test(url.trim())) {
+      setError("Please paste a valid YouTube link (e.g. youtube.com/watch?v=...)");
+      return;
+    }
 
     setLoading(true);
     setError(null);
     setResult(null);
     setSummary(null);
     setTranslation(null);
+    setElapsed(null);
+
+    const start = performance.now();
 
     try {
       const fetcher = mode === "pro" ? fetchTranscriptPremium : fetchTranscript;
@@ -36,22 +51,42 @@ export default function Home() {
         return;
       }
 
+      setElapsed(Math.round((performance.now() - start) / 1000 * 10) / 10);
       setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      // Summary mode: chain a summary call after getting the transcript
-      if (mode === "summary") {
-        const transcription = data.segments.map((s) => s.text).join(" ");
-        const summaryData = await fetchSummary(transcription);
-        setSummary(summaryData.summary);
-      }
+  async function handleSummary() {
+    if (!result) return;
+    setMode("summary");
+    setLoading(true);
+    setSummary(null);
+    setError(null);
+    try {
+      const transcription = result.segments.map((s) => s.text).join(" ");
+      const summaryData = await fetchSummary(transcription);
+      setSummary(summaryData.summary);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      // Translate mode: stream translation chunks progressively
-      if (mode === "translate") {
-        setTranslation("");
-        await fetchTranslationStream(data.segments, language, (chunk) => {
-          setTranslation((prev) => (prev || "") + chunk + "\n\n");
-        });
-      }
+  async function handleTranslate() {
+    if (!result) return;
+    setMode("translate");
+    setLoading(true);
+    setTranslation("");
+    setError(null);
+    try {
+      await fetchTranslationStream(result.segments, language, (chunk) => {
+        setTranslation((prev) => (prev || "") + chunk + "\n\n");
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -68,27 +103,38 @@ export default function Home() {
           url={url}
           loading={loading}
           mode={mode}
-          language={language}
           onUrlChange={setUrl}
           onModeChange={setMode}
-          onLanguageChange={setLanguage}
           onSubmit={handleSubmit}
         />
 
         {error && (
-          <div className="w-full max-w-[560px] rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
-            {error}
-          </div>
+          <ErrorModal message={error} onClose={() => setError(null)} />
         )}
 
         {result && (
-          <OutputCard
-            result={result}
-            mode={mode}
-            loading={loading}
-            summary={summary}
-            translation={translation}
-          />
+          <>
+            <OutputCard
+              result={result}
+              mode={mode}
+              loading={loading}
+              summary={summary}
+              translation={translation}
+              elapsedSeconds={elapsed}
+            />
+
+            {(mode === "transcription" || mode === "pro") && !loading && (
+              <PremiumUpsell
+                language={language}
+                languages={languages}
+                onLanguageChange={setLanguage}
+                onDownloadPdf={() => result && downloadPdf(result.segments)}
+                onSummary={handleSummary}
+                onTranslate={handleTranslate}
+                loading={loading}
+              />
+            )}
+          </>
         )}
       </main>
 

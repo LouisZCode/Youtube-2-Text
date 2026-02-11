@@ -39,9 +39,10 @@ interface OutputCardProps {
   loading: boolean;
   summary?: string | null;
   translation?: string | null;
+  elapsedSeconds?: number | null;
 }
 
-export default function OutputCard({ result, mode, loading, summary, translation }: OutputCardProps) {
+export default function OutputCard({ result, mode, loading, summary, translation, elapsedSeconds }: OutputCardProps) {
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
@@ -95,7 +96,7 @@ export default function OutputCard({ result, mode, loading, summary, translation
 
       {/* Header + Actions */}
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <span className="text-sm font-bold">
+        <span className="text-base font-bold">
           {isSummaryMode ? "Summary" : isTranslateMode ? "Translation" : "Transcript"}
         </span>
 
@@ -113,7 +114,7 @@ export default function OutputCard({ result, mode, loading, summary, translation
               )}
             </button>
             {copied && (
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-2 py-1 text-xs text-background">
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-2 py-1 text-sm text-background">
                 Copied!
               </span>
             )}
@@ -132,9 +133,9 @@ export default function OutputCard({ result, mode, loading, summary, translation
 
       {/* Meta info — transcript modes only */}
       {!isLlmMode && (
-        <div className="flex gap-4 border-b border-border px-5 py-2 text-xs text-text-secondary">
+        <div className="flex gap-4 border-b border-border px-5 py-2 text-sm text-text-secondary">
           <span>{result.word_count.toLocaleString()} words</span>
-          <span>Source: {result.source === "captions" ? "Captions" : "Audio transcription"}</span>
+          {elapsedSeconds != null && <span>in {elapsedSeconds}s</span>}
         </div>
       )}
 
@@ -149,14 +150,14 @@ export default function OutputCard({ result, mode, loading, summary, translation
         className="max-h-[480px] overflow-y-auto px-5 py-4"
       >
         {isLlmMode ? (
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+          <div className="whitespace-pre-wrap text-base leading-relaxed">
             {visibleLlmText}
             {isTranslateMode && loading && (
               <span className="animate-pulse text-text-secondary"> ...</span>
             )}
           </div>
         ) : (
-          <div className="space-y-4 font-mono text-sm leading-relaxed">
+          <div className="space-y-4 font-mono text-base leading-relaxed">
             {result.segments.map((seg, i) => (
               <p key={i}>
                 <span className="font-bold text-yt-red">{seg.timestamp}</span>{" "}

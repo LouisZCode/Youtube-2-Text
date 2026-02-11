@@ -6,33 +6,21 @@ interface HeroProps {
   url: string;
   loading: boolean;
   mode: Mode;
-  language: string;
   onUrlChange: (url: string) => void;
   onModeChange: (mode: Mode) => void;
-  onLanguageChange: (language: string) => void;
   onSubmit: () => void;
 }
-
-const languages = ["Spanish", "Portuguese", "German", "French"];
 
 const modes: { value: Mode; label: string }[] = [
   { value: "transcription", label: "Freemium" },
   { value: "pro", label: "Premium" },
-  { value: "summary", label: "Summary" },
-  { value: "translate", label: "Translate" },
 ];
 
-export default function Hero({ url, loading, mode, language, onUrlChange, onModeChange, onLanguageChange, onSubmit }: HeroProps) {
-  const buttonLabels: Record<Mode, string> = {
-    transcription: "GET TRANSCRIPTION",
-    pro: "GET TRANSCRIPTION",
-    summary: "GET SUMMARY",
-    translate: "GET TRANSLATION",
-  };
-  const buttonLabel = buttonLabels[mode];
+export default function Hero({ url, loading, mode, onUrlChange, onModeChange, onSubmit }: HeroProps) {
+  const buttonLabel = "GET TRANSCRIPTION";
 
   return (
-    <section className="flex flex-col items-center gap-4 text-center">
+    <section className="flex flex-col items-center gap-5 text-center">
       <div className="flex items-center gap-3">
         <div style={{ width: "150px", height: "150px", flexShrink: 0, overflow: "hidden" }}>
           <div style={{ width: "500px", height: "500px", transform: "scale(0.3) translateY(-180px)", transformOrigin: "top left" }}>
@@ -48,7 +36,7 @@ export default function Hero({ url, loading, mode, language, onUrlChange, onMode
         </h1>
       </div>
       <p className="max-w-md text-text-secondary">
-        Paste a YouTube link and get a formatted transcript with timestamps — instantly.
+        Turn any YouTube video into readable text in seconds.
       </p>
 
       <form
@@ -56,7 +44,7 @@ export default function Hero({ url, loading, mode, language, onUrlChange, onMode
           e.preventDefault();
           onSubmit();
         }}
-        className="mt-6 flex w-full max-w-[640px] flex-col gap-5"
+        className="mt-6 flex w-full max-w-[640px] flex-col gap-7"
       >
         {/* URL input */}
         <div className="flex w-full flex-col gap-0 sm:flex-row sm:gap-0">
@@ -76,7 +64,7 @@ export default function Hero({ url, loading, mode, language, onUrlChange, onMode
               key={m.value}
               type="button"
               onClick={() => onModeChange(m.value)}
-              className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
+              className={`flex-1 h-12 text-sm font-bold transition-colors ${
                 mode === m.value
                   ? "bg-yt-red text-white"
                   : "bg-card text-text-secondary hover:text-foreground"
@@ -87,28 +75,21 @@ export default function Hero({ url, loading, mode, language, onUrlChange, onMode
           ))}
         </div>
 
-        {/* Language selector — translate mode only */}
-        {mode === "translate" && (
-          <select
-            value={language}
-            onChange={(e) => onLanguageChange(e.target.value)}
-            className="h-12 w-full rounded-full border border-border bg-card px-5 text-sm outline-none transition-colors focus:border-yt-red"
-          >
-            {languages.map((lang) => (
-              <option key={lang} value={lang}>
-                {lang}
-              </option>
-            ))}
-          </select>
-        )}
-
         {/* Action button */}
         <button
           type="submit"
           disabled={loading || !url.trim()}
-          className="h-12 w-full rounded-full bg-yt-red text-sm font-bold tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="h-12 w-full rounded-full bg-yt-red text-base font-bold tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? "PROCESSING..." : buttonLabel}
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              PROCESSING...
+            </span>
+          ) : buttonLabel}
         </button>
       </form>
     </section>
