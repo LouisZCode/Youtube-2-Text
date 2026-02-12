@@ -3,10 +3,16 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from routes import all_routes
 
 app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("JWT_SECRET"))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],

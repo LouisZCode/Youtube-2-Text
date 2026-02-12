@@ -12,7 +12,7 @@ export async function fetchTranscript(
   if (!res.ok) {
     if (res.status === 429) {
       const body = await res.json();
-      throw new Error(body.detail || "Free usage limit reached");
+      throw new Error(`__LIMIT__${body.detail || "Free usage limit reached"}`);
     }
     throw new Error(`Server error: ${res.status}`);
   }

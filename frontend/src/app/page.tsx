@@ -24,6 +24,7 @@ export default function Home() {
   const [translation, setTranslation] = useState<string | null>(null);
   const [language, setLanguage] = useState("Spanish");
   const [elapsed, setElapsed] = useState<number | null>(null);
+  const [isLimitError, setIsLimitError] = useState(false);
 
   async function handleSubmit() {
     if (!url.trim()) return;
@@ -35,6 +36,7 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
+    setIsLimitError(false);
     setResult(null);
     setSummary(null);
     setTranslation(null);
@@ -54,7 +56,13 @@ export default function Home() {
       setElapsed(Math.round((performance.now() - start) / 1000 * 10) / 10);
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      if (msg.startsWith("__LIMIT__")) {
+        setError(msg.slice(9));
+        setIsLimitError(true);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -109,7 +117,7 @@ export default function Home() {
         />
 
         {error && (
-          <ErrorModal message={error} onClose={() => setError(null)} />
+          <ErrorModal message={error} onClose={() => setError(null)} showSignIn={isLimitError} />
         )}
 
         {result && (
