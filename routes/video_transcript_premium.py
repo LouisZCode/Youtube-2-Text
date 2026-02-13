@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from deepgram import DeepgramClient
 import yt_dlp
 import os
@@ -7,6 +7,7 @@ import tempfile
 from dotenv import load_dotenv
 
 from .utils import extract_video_id, merge_segments
+from dependencies.auth import require_premium
 
 router = APIRouter()
 load_dotenv()
@@ -42,7 +43,7 @@ def _transcribe_with_deepgram(mp3_path: str) -> tuple[list[dict], int]:
 
 
 @router.post("/video/premium/")
-async def get_video_transcript_premium(video_url: str, language: str = "en"):
+async def get_video_transcript_premium(video_url: str, language: str = "en", user=Depends(require_premium)):
     try:
         video_id = extract_video_id(video_url)
 

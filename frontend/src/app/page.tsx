@@ -25,6 +25,24 @@ export default function Home() {
   const [language, setLanguage] = useState("Spanish");
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [isLimitError, setIsLimitError] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+
+  function handleApiError(err: unknown) {
+    const msg = err instanceof Error ? err.message : "Something went wrong";
+    if (msg.startsWith("__LIMIT__")) {
+      setError(msg.slice(9));
+      setIsLimitError(true);
+      setShowSignIn(true);
+    } else if (msg.startsWith("__AUTH__")) {
+      setError(msg.slice(7));
+      setShowSignIn(true);
+    } else if (msg.startsWith("__PREMIUM__")) {
+      setError(msg.slice(11));
+      setShowSignIn(false);
+    } else {
+      setError(msg);
+    }
+  }
 
   async function handleSubmit() {
     if (!url.trim()) return;
@@ -37,6 +55,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setIsLimitError(false);
+    setShowSignIn(false);
     setResult(null);
     setSummary(null);
     setTranslation(null);
@@ -56,13 +75,7 @@ export default function Home() {
       setElapsed(Math.round((performance.now() - start) / 1000 * 10) / 10);
       setResult(data);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      if (msg.startsWith("__LIMIT__")) {
-        setError(msg.slice(9));
-        setIsLimitError(true);
-      } else {
-        setError(msg);
-      }
+      handleApiError(err);
     } finally {
       setLoading(false);
     }
@@ -74,12 +87,13 @@ export default function Home() {
     setLoading(true);
     setSummary(null);
     setError(null);
+    setShowSignIn(false);
     try {
       const transcription = result.segments.map((s) => s.text).join(" ");
       const summaryData = await fetchSummary(transcription);
       setSummary(summaryData.summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      handleApiError(err);
     } finally {
       setLoading(false);
     }
@@ -91,12 +105,13 @@ export default function Home() {
     setLoading(true);
     setTranslation("");
     setError(null);
+    setShowSignIn(false);
     try {
       await fetchTranslationStream(result.segments, language, (chunk) => {
         setTranslation((prev) => (prev || "") + chunk + "\n\n");
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      handleApiError(err);
     } finally {
       setLoading(false);
     }
@@ -117,7 +132,7 @@ export default function Home() {
         />
 
         {error && (
-          <ErrorModal message={error} onClose={() => setError(null)} showSignIn={isLimitError} />
+          <ErrorModal message={error} onClose={() => setError(null)} showSignIn={showSignIn} />
         )}
 
         {result && (

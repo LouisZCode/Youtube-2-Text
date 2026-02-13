@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto, Roboto_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/context/AuthContext";
 import Script from "next/script";
 import "./globals.css";
 
@@ -35,7 +36,9 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
         <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

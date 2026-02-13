@@ -1,7 +1,8 @@
 import json
 from typing import List
 from pydantic import BaseModel
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from dependencies.auth import require_premium
 from fastapi.responses import StreamingResponse
 from agents.translate_agent import translate
 
@@ -17,7 +18,7 @@ class TranslateStreamRequest(BaseModel):
     language: str
 
 @router.post("/video/translate")
-async def stream_video_translation(request: TranslateStreamRequest):
+async def stream_video_translation(request: TranslateStreamRequest, user=Depends(require_premium)):
     async def event_generator():
         for i in range(0, len(request.segments), CHUNK_SIZE):
             chunk_segments = request.segments[i : i + CHUNK_SIZE]

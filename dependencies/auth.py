@@ -1,4 +1,4 @@
-from fastapi import Depends, Request                                                                                                                                                                                                                     
+from fastapi import Depends, HTTPException, Request                                                                                                                                                                                                                     
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select                                                                                                                                                                                                                            
 from jose import jwt, JWTError  
@@ -32,3 +32,11 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
+
+
+async def require_premium(user=Depends(get_current_user)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in required")
+    if user.tier != "premium":
+        raise HTTPException(status_code=403, detail="Premium subscription required")
+    return user

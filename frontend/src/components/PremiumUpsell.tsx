@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { DownloadIcon, SparklesIcon, GlobeIcon } from "./icons";
+import PremiumGateModal from "./PremiumGateModal";
 
 interface PremiumUpsellProps {
   language: string;
@@ -22,7 +24,19 @@ export default function PremiumUpsell({
   onTranslate,
   loading,
 }: PremiumUpsellProps) {
+  const { user } = useAuth();
   const [hoveredCard, setHoveredCard] = useState<"pdf" | "summary" | "translate" | null>(null);
+  const [showGate, setShowGate] = useState(false);
+
+  const isPremium = user?.tier === "premium";
+
+  function handlePremiumClick(action: () => void) {
+    if (!isPremium) {
+      setTimeout(() => setShowGate(true), 500);
+      return;
+    }
+    action();
+  }
 
   return (
     <div className="animate-slide-up w-full max-w-[800px]">
@@ -60,7 +74,7 @@ export default function PremiumUpsell({
         <button
           type="button"
           disabled={loading}
-          onClick={onSummary}
+          onClick={() => handlePremiumClick(onSummary)}
           onMouseEnter={() => setHoveredCard("summary")}
           onMouseLeave={() => setHoveredCard(null)}
           className="group flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-yt-red/40 hover:shadow-sm disabled:opacity-50"
@@ -117,7 +131,7 @@ export default function PremiumUpsell({
             <button
               type="button"
               disabled={loading}
-              onClick={onTranslate}
+              onClick={() => handlePremiumClick(onTranslate)}
               className="h-9 rounded-lg bg-yt-red px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {loading ? "..." : "Translate"}
@@ -125,6 +139,10 @@ export default function PremiumUpsell({
           </div>
         </div>
       </div>
+
+      {showGate && (
+        <PremiumGateModal loggedIn={!!user} onCancel={() => setShowGate(false)} />
+      )}
     </div>
   );
 }

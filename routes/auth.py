@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
 from authlib.integrations.starlette_client import OAuth
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 import os
 from dotenv import load_dotenv
+
+from dependencies.auth import get_current_user
 
 load_dotenv()
 
@@ -106,4 +108,23 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
         samesite="lax",
     )
 
+    return response
+
+
+@router.get("/me")
+async def get_me(user=Depends(get_current_user)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {
+        "name": user.name,
+        "email": user.email,
+        "avatar_url": user.avatar_url,
+        "tier": user.tier,
+    }
+
+
+@router.get("/logout")
+async def logout():
+    response = JSONResponse(content={"message": "Logged out"})
+    response.delete_cookie(key="tubetext_token")
     return response

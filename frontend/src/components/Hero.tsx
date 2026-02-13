@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { Mode } from "@/lib/types";
+import PremiumGateModal from "./PremiumGateModal";
 
 interface HeroProps {
   url: string;
@@ -17,7 +20,25 @@ const modes: { value: Mode; label: string }[] = [
 ];
 
 export default function Hero({ url, loading, mode, onUrlChange, onModeChange, onSubmit }: HeroProps) {
+  const { user } = useAuth();
+  const [showGate, setShowGate] = useState(false);
   const buttonLabel = "GET TRANSCRIPTION";
+
+  const isPremium = user?.tier === "premium";
+
+  function handleModeClick(m: Mode) {
+    if (m === "pro" && !isPremium) {
+      onModeChange("pro");
+      setTimeout(() => setShowGate(true), 500);
+      return;
+    }
+    onModeChange(m);
+  }
+
+  function handleGateCancel() {
+    setShowGate(false);
+    onModeChange("transcription");
+  }
 
   return (
     <section className="flex flex-col items-center gap-5 text-center">
@@ -58,13 +79,13 @@ export default function Hero({ url, loading, mode, onUrlChange, onModeChange, on
         </div>
 
         {/* Mode toggle */}
-        <div className="flex w-full rounded-full border border-border overflow-hidden">
+        <div className="relative flex w-full rounded-full border border-border overflow-hidden">
           {modes.map((m) => (
             <button
               key={m.value}
               type="button"
-              onClick={() => onModeChange(m.value)}
-              className={`flex-1 h-12 text-sm font-bold transition-colors ${
+              onClick={() => handleModeClick(m.value)}
+              className={`flex-1 h-12 text-sm font-bold transition-colors duration-500 ${
                 mode === m.value
                   ? "bg-yt-red text-white"
                   : "bg-card text-text-secondary hover:text-foreground"
@@ -92,6 +113,10 @@ export default function Hero({ url, loading, mode, onUrlChange, onModeChange, on
           ) : buttonLabel}
         </button>
       </form>
+
+      {showGate && (
+        <PremiumGateModal loggedIn={!!user} onCancel={handleGateCancel} />
+      )}
     </section>
   );
 }

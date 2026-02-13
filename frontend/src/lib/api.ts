@@ -2,6 +2,27 @@ import { TranscriptResponse, SummaryResponse, TranslateResponse, Segment, Transl
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export interface CurrentUser {
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  tier: string;
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  try {
+    const res = await fetch(`${API_URL}/auth/me`, { credentials: "include" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function logoutUser(): Promise<void> {
+  await fetch(`${API_URL}/auth/logout`, { credentials: "include" });
+}
+
 export async function fetchTranscript(
   videoUrl: string,
   language: string = "en"
@@ -28,6 +49,8 @@ export async function fetchTranscriptPremium(
   const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST", credentials: "include" });
 
   if (!res.ok) {
+    if (res.status === 401) throw new Error("__AUTH__Sign in required");
+    if (res.status === 403) throw new Error("__PREMIUM__Premium subscription required");
     throw new Error(`Server error: ${res.status}`);
   }
 
@@ -41,7 +64,11 @@ export async function fetchSummary(transcription: string): Promise<SummaryRespon
     body: JSON.stringify({ transcription }),
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`Summary failed: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("__AUTH__Sign in required");
+    if (res.status === 403) throw new Error("__PREMIUM__Premium subscription required");
+    throw new Error(`Summary failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -56,7 +83,11 @@ export async function fetchTranslationStream(
     body: JSON.stringify({ segments, language }),
     credentials: "include",
   });
-  if (!res.ok) throw new Error(`Translation failed: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("__AUTH__Sign in required");
+    if (res.status === 403) throw new Error("__PREMIUM__Premium subscription required");
+    throw new Error(`Translation failed: ${res.status}`);
+  }
 
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
