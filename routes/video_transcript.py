@@ -56,8 +56,9 @@ async def get_video_transcript(request: Request, response : Response, video_url:
             user.usage_count = 0
             user.usage_reset_at = now
 
-        if user.usage_count >= 20:
-            raise HTTPException(status_code=429, detail="You've used all 20 free transcriptions this month. Upgrade to Premium for unlimited access.")
+        limit = 20 + user.bonus_uses
+        if user.usage_count >= limit:
+            raise HTTPException(status_code=429, detail=f"You've used all {limit} free transcriptions this month. Upgrade to Premium for unlimited access.")
 
         user.usage_count += 1
         db.add(user)

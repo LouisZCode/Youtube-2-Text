@@ -1,13 +1,41 @@
 "use client";
 
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { joinWaitlist } from "@/lib/api";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface PremiumGateModalProps {
   loggedIn: boolean;
   onCancel: () => void;
+  reason?: string;
 }
 
-export default function PremiumGateModal({ loggedIn, onCancel }: PremiumGateModalProps) {
+export default function PremiumGateModal({ loggedIn, onCancel, reason }: PremiumGateModalProps) {
+  const { user, refreshUser } = useAuth();
+  const [email, setEmail] = useState(user?.email || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [joined, setJoined] = useState(false);
+
+  async function handleJoinWaitlist() {
+    if (!email.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await joinWaitlist(email.trim());
+      setJoined(true);
+      await refreshUser();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const alreadyOnWaitlist = user?.on_waitlist || joined;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -24,15 +52,20 @@ export default function PremiumGateModal({ loggedIn, onCancel }: PremiumGateModa
             </svg>
           </div>
           <p className="text-base font-bold">Unlock Premium</p>
+          {reason && !alreadyOnWaitlist && (
+            <p className="text-sm font-medium text-yt-red">{reason}</p>
+          )}
           <p className="text-sm text-text-secondary">
-            {loggedIn
-              ? "Upgrade to access all premium features."
-              : "Sign in to access premium features."}
+            {!loggedIn
+              ? "Sign in to access premium features."
+              : alreadyOnWaitlist
+                ? "You're on the waitlist! You have 20 extra free transcriptions this month."
+                : "Join the premium waitlist and get 20 extra free transcriptions this month."}
           </p>
           <ul className="w-full space-y-2 text-left text-sm text-text-secondary">
             <li className="flex items-center gap-2">
               <span className="text-yt-red">&#10003;</span>
-              98%+ accurate transcriptions, don't lose details
+              98%+ accurate transcriptions, don&apos;t lose details
             </li>
             <li className="flex items-center gap-2">
               <span className="text-yt-red">&#10003;</span>
@@ -47,13 +80,7 @@ export default function PremiumGateModal({ loggedIn, onCancel }: PremiumGateModa
               Access to free updates for life
             </li>
           </ul>
-          {loggedIn ? (
-            <button
-              className="h-10 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90"
-            >
-              Upgrade to Premium
-            </button>
-          ) : (
+          {!loggedIn ? (
             <a
               href={`${API_URL}/auth/google/login`}
               className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-border bg-white text-sm font-bold text-gray-800 transition-opacity hover:opacity-90"
@@ -66,6 +93,30 @@ export default function PremiumGateModal({ loggedIn, onCancel }: PremiumGateModa
               </svg>
               Sign in with Google
             </a>
+          ) : alreadyOnWaitlist ? (
+            <div className="flex h-10 w-full items-center justify-center rounded-full bg-green-500/10 text-sm font-bold text-green-600">
+              You&apos;re on the waitlist!
+            </div>
+          ) : (
+            <>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="h-10 w-full rounded-full border border-border bg-background px-4 text-sm text-text-primary outline-none focus:border-yt-red"
+              />
+              {error && (
+                <p className="text-xs text-yt-red">{error}</p>
+              )}
+              <button
+                onClick={handleJoinWaitlist}
+                disabled={submitting || !email.trim()}
+                className="h-10 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {submitting ? "Joining..." : "Join Waitlist & Get 20 Extra Uses"}
+              </button>
+            </>
           )}
           <button
             onClick={onCancel}

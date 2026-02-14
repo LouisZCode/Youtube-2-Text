@@ -19,6 +19,7 @@ class User(Base):
 
     usage_count = Column(Integer, default=0, nullable=False)
     usage_reset_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    bonus_uses = Column(Integer, default=0, nullable=False)
 
     oauth_accounts = relationship("OAuthAccount", back_populates="user", cascade="all, delete-orphan")
 
@@ -37,3 +38,12 @@ class OAuthAccount(Base):
     __table_args__ = (
         UniqueConstraint("provider", "provider_user_id", name="uq_provider_account"),
     )
+
+
+class Waitlist(Base):
+    __tablename__ = "waitlist"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(320), nullable=False)
+    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

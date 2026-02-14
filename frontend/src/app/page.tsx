@@ -8,13 +8,16 @@ import Hero from "@/components/Hero";
 import OutputCard from "@/components/OutputCard";
 import PremiumUpsell from "@/components/PremiumUpsell";
 import ErrorModal from "@/components/ErrorModal";
+import PremiumGateModal from "@/components/PremiumGateModal";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/context/AuthContext";
 
 const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
 
 const languages = ["Spanish", "Portuguese", "German", "French"];
 
 export default function Home() {
+  const { user } = useAuth();
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<Mode>("transcription");
   const [loading, setLoading] = useState(false);
@@ -165,9 +168,15 @@ export default function Home() {
           onSubmit={handleSubmit}
         />
 
-        {error && (
+        {error && isLimitError && user ? (
+          <PremiumGateModal
+            loggedIn
+            reason="You used your 20 Free Tier transcriptions this month."
+            onCancel={() => setError(null)}
+          />
+        ) : error ? (
           <ErrorModal message={error} onClose={() => setError(null)} showSignIn={showSignIn} />
-        )}
+        ) : null}
 
         {result && (
           <>

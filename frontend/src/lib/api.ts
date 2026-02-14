@@ -7,6 +7,7 @@ export interface CurrentUser {
   email: string;
   avatar_url: string | null;
   tier: string;
+  on_waitlist: boolean;
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
@@ -21,6 +22,20 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
 
 export async function logoutUser(): Promise<void> {
   await fetch(`${API_URL}/auth/logout`, { credentials: "include" });
+}
+
+export async function joinWaitlist(email: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_URL}/auth/waitlist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.json();
+    throw new Error(body.detail || "Failed to join waitlist");
+  }
+  return res.json();
 }
 
 export interface VideoLanguage {

@@ -45,8 +45,9 @@ async def login(request: Request):
 # The URL contains a ?code=... param that we exchange for the user's profile.
 # Then we upsert the user in our DB.
 
+from pydantic import BaseModel
 from database.connection import get_db
-from database.orm import User, OAuthAccount
+from database.orm import User, OAuthAccount, Waitlist
 
 @router.get("/google/callback", name="auth_callback")
 async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
@@ -112,15 +113,39 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me")
-async def get_me(user=Depends(get_current_user)):
+async def get_me(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    result = await db.execute(select(Waitlist).where(Waitlist.user_id == user.id))
+    on_waitlist = result.scalar_one_or_none() is not None
     return {
         "name": user.name,
         "email": user.email,
         "avatar_url": user.avatar_url,
         "tier": user.tier,
+        "on_waitlist": on_waitlist,
     }
+
+
+class WaitlistRequest(BaseModel):
+    email: str
+
+
+@router.post("/waitlist")
+async def join_waitlist(body: WaitlistRequest, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = await db.execute(select(Waitlist).where(Waitlist.user_id == user.id))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Already on waitlist")
+
+    db.add(Waitlist(user_id=user.id, email=body.email))
+    user.bonus_uses = 20
+    db.add(user)
+    await db.commit()
+
+    return {"success": True}
 
 
 @router.get("/logout")
