@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TranscriptResult, Mode } from "@/lib/types";
-import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf } from "@/lib/api";
+import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf, fetchLanguages } from "@/lib/api";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import OutputCard from "@/components/OutputCard";
@@ -26,6 +26,32 @@ export default function Home() {
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [isLimitError, setIsLimitError] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [detectedLang, setDetectedLang] = useState<string | null>(null);
+  const [detectedLangName, setDetectedLangName] = useState<string | null>(null);
+  const [detectingLang, setDetectingLang] = useState(false);
+  const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-detect caption language when a valid YouTube URL is entered
+  useEffect(() => {
+    if (detectTimer.current) clearTimeout(detectTimer.current);
+    setDetectedLang(null);
+    setDetectedLangName(null);
+
+    if (!YT_URL_RE.test(url.trim())) return;
+
+    detectTimer.current = setTimeout(async () => {
+      setDetectingLang(true);
+      const data = await fetchLanguages(url.trim());
+      if (data.success && data.default) {
+        setDetectedLang(data.default);
+        const match = data.languages.find((l) => l.code === data.default);
+        setDetectedLangName(match?.name || data.default);
+      }
+      setDetectingLang(false);
+    }, 600);
+
+    return () => { if (detectTimer.current) clearTimeout(detectTimer.current); };
+  }, [url]);
 
   function handleApiError(err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -65,7 +91,7 @@ export default function Home() {
 
     try {
       const fetcher = mode === "pro" ? fetchTranscriptPremium : fetchTranscript;
-      const data = await fetcher(url);
+      const data = await fetcher(url, detectedLang || "en");
 
       if (!data.success) {
         setError(data.error);
@@ -126,6 +152,9 @@ export default function Home() {
           url={url}
           loading={loading}
           mode={mode}
+          detectedLang={detectedLang}
+          detectedLangName={detectedLangName}
+          detectingLang={detectingLang}
           onUrlChange={setUrl}
           onModeChange={setMode}
           onSubmit={handleSubmit}

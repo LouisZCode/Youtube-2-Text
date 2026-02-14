@@ -23,6 +23,20 @@ export async function logoutUser(): Promise<void> {
   await fetch(`${API_URL}/auth/logout`, { credentials: "include" });
 }
 
+export interface VideoLanguage {
+  code: string;
+  name: string;
+}
+
+export async function fetchLanguages(
+  videoUrl: string
+): Promise<{ success: boolean; languages: VideoLanguage[]; default: string | null }> {
+  const params = new URLSearchParams({ video_url: videoUrl });
+  const res = await fetch(`${API_URL}/video/languages?${params}`);
+  if (!res.ok) return { success: false, languages: [], default: null };
+  return res.json();
+}
+
 export async function fetchTranscript(
   videoUrl: string,
   language: string = "en"
