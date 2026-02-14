@@ -20,6 +20,7 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
     "python-jose[cryptography]>=3.5.0",
+    "resend>=2.21.0",
     "sqlalchemy>=2.0.46",
     "uvicorn>=0.40.0",
     "youtube-transcript-api>=1.2.4",

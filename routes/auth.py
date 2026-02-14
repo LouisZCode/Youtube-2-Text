@@ -8,6 +8,7 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 
 import os
+import resend
 from dotenv import load_dotenv
 
 from dependencies.auth import get_current_user
@@ -29,6 +30,7 @@ oauth.register(
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 JWT_SECRET = os.getenv("JWT_SECRET")
+resend.api_key = os.getenv("RESEND_API_KEY")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_DAYS = 30
 
@@ -144,6 +146,19 @@ async def join_waitlist(body: WaitlistRequest, user=Depends(get_current_user), d
     user.bonus_uses = 20
     db.add(user)
     await db.commit()
+
+    resend.Emails.send({
+        "from": "TubeText <contact@send.tubetext.app>",
+        "to": [body.email],
+        "subject": "You're on the TubeText Premium Waitlist!",
+        "html": (
+            f"<p>Hey {user.name},</p>"
+            "<p>Thanks for joining the TubeText Premium waitlist! "
+            "As a thank you, we've added <strong>20 extra free transcriptions</strong> to your account this month (40 total).</p>"
+            "<p>We'll email you as soon as Premium is ready.</p>"
+            "<p>— The TubeText Team</p>"
+        ),
+    })
 
     return {"success": True}
 
