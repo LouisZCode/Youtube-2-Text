@@ -29,6 +29,7 @@ export default function Home() {
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [detectedLangName, setDetectedLangName] = useState<string | null>(null);
   const [detectingLang, setDetectingLang] = useState(false);
+  const [noCaptions, setNoCaptions] = useState(false);
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-detect caption language when a valid YouTube URL is entered
@@ -36,16 +37,19 @@ export default function Home() {
     if (detectTimer.current) clearTimeout(detectTimer.current);
     setDetectedLang(null);
     setDetectedLangName(null);
+    setNoCaptions(false);
 
     if (!YT_URL_RE.test(url.trim())) return;
 
+    setDetectingLang(true);
     detectTimer.current = setTimeout(async () => {
-      setDetectingLang(true);
       const data = await fetchLanguages(url.trim());
       if (data.success && data.default) {
         setDetectedLang(data.default);
         const match = data.languages.find((l) => l.code === data.default);
         setDetectedLangName(match?.name || data.default);
+      } else {
+        setNoCaptions(true);
       }
       setDetectingLang(false);
     }, 600);
@@ -155,6 +159,7 @@ export default function Home() {
           detectedLang={detectedLang}
           detectedLangName={detectedLangName}
           detectingLang={detectingLang}
+          noCaptions={noCaptions}
           onUrlChange={setUrl}
           onModeChange={setMode}
           onSubmit={handleSubmit}

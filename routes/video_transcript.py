@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from youtube_transcript_api import YouTubeTranscriptApi
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
 from .utils import extract_video_id, merge_segments
 
@@ -9,6 +11,7 @@ import os
 from dotenv import load_dotenv
 
 from dependencies.auth import get_current_user
+from database import get_db
 
 load_dotenv()
 
@@ -19,15 +22,15 @@ router = APIRouter()
 serializer = URLSafeSerializer(COOKIE_SECRET_KEY)
 
 @router.post("/video/")
-async def get_video_transcript(request: Request, response : Response, video_url: str, language: str = "en", user = Depends(get_current_user)):
+async def get_video_transcript(request: Request, response : Response, video_url: str, language: str = "en", user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
 
     if not user:
 
         raw_cookie = request.cookies.get("tubetext_session")
 
-        if not raw_cookie: 
+        if not raw_cookie:
             count = 1
-        
+
         else:
             try:
                 data = serializer.loads(raw_cookie)  # verify + decode
@@ -37,7 +40,7 @@ async def get_video_transcript(request: Request, response : Response, video_url:
 
         if count > 5:
             raise HTTPException(status_code=429, detail="You ran out of free transcriptions, please signup to get 20 more free ones")
-        
+
         signed_value = serializer.dumps({"count": count})
         response.set_cookie(
             key="tubetext_session",
@@ -46,6 +49,19 @@ async def get_video_transcript(request: Request, response : Response, video_url:
             max_age=60 * 60 * 24 * 30,
             samesite="lax"
         )
+
+    if user and user.tier != "premium":
+        now = datetime.now(timezone.utc)
+        if user.usage_reset_at.month != now.month or user.usage_reset_at.year != now.year:
+            user.usage_count = 0
+            user.usage_reset_at = now
+
+        if user.usage_count >= 20:
+            raise HTTPException(status_code=429, detail="You've used all 20 free transcriptions this month. Upgrade to Premium for unlimited access.")
+
+        user.usage_count += 1
+        db.add(user)
+        await db.commit()
 
 
     try:

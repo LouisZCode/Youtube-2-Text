@@ -12,6 +12,7 @@ interface HeroProps {
   detectedLang: string | null;
   detectedLangName: string | null;
   detectingLang: boolean;
+  noCaptions: boolean;
   onUrlChange: (url: string) => void;
   onModeChange: (mode: Mode) => void;
   onSubmit: () => void;
@@ -36,7 +37,7 @@ const modes: { value: Mode; label: string }[] = [
   { value: "pro", label: "Premium" },
 ];
 
-export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, onUrlChange, onModeChange, onSubmit }: HeroProps) {
+export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, noCaptions, onUrlChange, onModeChange, onSubmit }: HeroProps) {
   const { user } = useAuth();
   const [showGate, setShowGate] = useState(false);
   const buttonLabel = "GET TRANSCRIPTION";
@@ -128,7 +129,7 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
         {/* Action button */}
         <button
           type="submit"
-          disabled={loading || !url.trim()}
+          disabled={loading || !url.trim() || detectingLang || (noCaptions && mode !== "pro")}
           className="h-12 w-full rounded-full bg-yt-red text-base font-bold tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
@@ -137,10 +138,24 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              PROCESSING...
+              TRANSCRIBING...
+            </span>
+          ) : detectingLang ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              DETECTING LANGUAGE...
             </span>
           ) : buttonLabel}
         </button>
+
+        {noCaptions && mode !== "pro" && (
+          <p className="text-sm text-text-secondary text-center -mt-4">
+            No captions available for this video. Upgrade to Premium to get smart transcriptions.
+          </p>
+        )}
       </form>
 
       {showGate && (
