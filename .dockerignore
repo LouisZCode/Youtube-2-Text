@@ -26,6 +26,7 @@ ARCHITECTURE.md
 # Dependency directories
 node_modules/
 venv/
+.venv/
 .envrc
 
 # Python
