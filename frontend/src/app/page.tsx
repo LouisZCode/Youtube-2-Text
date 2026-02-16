@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { TranscriptResult, Mode } from "@/lib/types";
 import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf, fetchLanguages } from "@/lib/api";
+import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import OutputCard from "@/components/OutputCard";
-import PremiumUpsell from "@/components/PremiumUpsell";
-import ErrorModal from "@/components/ErrorModal";
-import PremiumGateModal from "@/components/PremiumGateModal";
-import Footer from "@/components/Footer";
+
+const OutputCard = dynamic(() => import("@/components/OutputCard"));
+const PremiumUpsell = dynamic(() => import("@/components/PremiumUpsell"));
+const ErrorModal = dynamic(() => import("@/components/ErrorModal"));
+const PremiumGateModal = dynamic(() => import("@/components/PremiumGateModal"));
+const Footer = dynamic(() => import("@/components/Footer"));
 import { useAuth } from "@/context/AuthContext";
 
 const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
