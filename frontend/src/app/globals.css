@@ -62,3 +62,15 @@ body {
 .animate-slide-up {
   animation: slide-up 0.4s ease-out;
 }
+
+/* Floating animation for logo */
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(4px, -4px); }
+  50% { transform: translate(0, -8px); }
+  75% { transform: translate(-4px, -4px); }
+}
+
+.animate-float {
+  animation: float 3s linear infinite;
+}

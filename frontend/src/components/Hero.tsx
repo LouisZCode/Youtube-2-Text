@@ -61,15 +61,13 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
   return (
     <section className="flex flex-col items-center gap-5 text-center">
       <div className="flex items-center gap-3">
-        <div style={{ width: "150px", height: "150px", flexShrink: 0, overflow: "hidden" }}>
-          <div style={{ width: "500px", height: "500px", transform: "scale(0.3) translateY(-180px)", transformOrigin: "top left" }}>
-            {/* @ts-expect-error — hana-viewer is a web component */}
-            <hana-viewer
-              url="https://prod.spline.design/JUDRPnotN4nfb0Tl-515/scene.hanacode"
-              style={{ width: "100%", height: "100%" }}
-            />
-          </div>
-        </div>
+        <img
+          src="/tubetext_small.png"
+          alt="TubeText logo"
+          width={150}
+          height={150}
+          className="animate-float"
+        />
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
           Video to Text<span className="text-yt-red">.</span>
         </h1>
