@@ -2,6 +2,8 @@
 
 Get transcripts, summaries, and translations from any YouTube video.
 
+Use it and test it in real time at  www.tubetext.app
+
 <!-- Add a screenshot or GIF here -->
 <!-- ![TubeText Screenshot](docs/screenshot.png) -->
 
