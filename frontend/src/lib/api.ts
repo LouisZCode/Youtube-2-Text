@@ -123,7 +123,7 @@ export async function fetchTranslationStream(
   }
 }
 
-export async function createCheckout(plan: "monthly" | "lifetime"): Promise<string> {
+export async function createCheckout(plan: "monthly" | "yearly" | "lifetime"): Promise<string> {
   const res = await fetch(`${API_URL}/payments/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
