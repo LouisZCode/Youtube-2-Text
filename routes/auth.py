@@ -47,7 +47,6 @@ async def login(request: Request):
 # The URL contains a ?code=... param that we exchange for the user's profile.
 # Then we upsert the user in our DB.
 
-from pydantic import BaseModel
 from database.connection import get_db
 from database.orm import User, OAuthAccount
 

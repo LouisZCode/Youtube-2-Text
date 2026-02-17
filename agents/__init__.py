@@ -1,1 +1,1 @@
-from .summarize_agent import summary_agent
+from .summarize_agent import summary_agent as summary_agent

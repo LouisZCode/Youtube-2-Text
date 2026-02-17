@@ -7,16 +7,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import os
-import logging
 from dotenv import load_dotenv
 load_dotenv()
-
-# Diagnostic: confirm Stripe env vars are present at startup
-_log = logging.getLogger(__name__)
-_stripe_vars = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_MONTHLY_PRICE_ID", "STRIPE_YEARLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID"]
-for _v in _stripe_vars:
-    _val = os.getenv(_v)
-    _log.warning(f"ENV {_v}: {'SET (len={})'.format(len(_val)) if _val else 'NOT SET'}")
 
 from routes import all_routes
 
