@@ -19,7 +19,6 @@ class User(Base):
 
     usage_count = Column(Integer, default=0, nullable=False)
     usage_reset_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    bonus_uses = Column(Integer, default=0, nullable=False)
 
     oauth_accounts = relationship("OAuthAccount", back_populates="user", cascade="all, delete-orphan")
 
@@ -40,10 +39,16 @@ class OAuthAccount(Base):
     )
 
 
-class Waitlist(Base):
-    __tablename__ = "waitlist"
+class Subscription(Base):
+    __tablename__ = "subscriptions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    email = Column(String(320), nullable=False)
-    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    stripe_customer_id = Column(String(255), nullable=False)
+    stripe_subscription_id = Column(String(255), nullable=True)   # null for lifetime
+    stripe_price_id = Column(String(255), nullable=False)
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", backref="subscription")

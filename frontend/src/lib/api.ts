@@ -7,7 +7,6 @@ export interface CurrentUser {
   email: string;
   avatar_url: string | null;
   tier: string;
-  on_waitlist: boolean;
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
@@ -22,20 +21,6 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
 
 export async function logoutUser(): Promise<void> {
   await fetch(`${API_URL}/auth/logout`, { credentials: "include" });
-}
-
-export async function joinWaitlist(email: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_URL}/auth/waitlist`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const body = await res.json();
-    throw new Error(body.detail || "Failed to join waitlist");
-  }
-  return res.json();
 }
 
 export interface VideoLanguage {
@@ -135,6 +120,32 @@ export async function fetchTranslationStream(
       if (event.done) return;
       if (event.translation) onChunk(event.translation);
     }
+  }
+}
+
+export async function createCheckout(plan: "monthly" | "lifetime"): Promise<string> {
+  const res = await fetch(`${API_URL}/payments/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.json();
+    throw new Error(body.detail || "Failed to create checkout");
+  }
+  const data = await res.json();
+  return data.url;
+}
+
+export async function fetchCustomerPortal(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/payments/portal`, { credentials: "include" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.url;
+  } catch {
+    return null;
   }
 }
 

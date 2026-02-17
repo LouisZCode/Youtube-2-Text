@@ -32,17 +32,16 @@ const langToFlag: Record<string, string> = {
   he: "\u{1F1EE}\u{1F1F1}", ms: "\u{1F1F2}\u{1F1FE}", fil: "\u{1F1F5}\u{1F1ED}",
 };
 
-const modes: { value: Mode; label: string }[] = [
-  { value: "transcription", label: "Freemium" },
-  { value: "pro", label: "Premium" },
-];
-
 export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, noCaptions, onUrlChange, onModeChange, onSubmit }: HeroProps) {
   const { user } = useAuth();
   const [showGate, setShowGate] = useState(false);
   const buttonLabel = "GET TRANSCRIPTION";
 
   const isPremium = user?.tier === "premium";
+  const modes: { value: Mode; label: string }[] = [
+    { value: "transcription", label: isPremium ? "Quick" : "Freemium" },
+    { value: "pro", label: isPremium ? "HD Accurate" : "Premium" },
+  ];
 
   function handleModeClick(m: Mode) {
     if (m === "pro" && !isPremium) {

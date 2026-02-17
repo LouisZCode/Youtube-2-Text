@@ -49,7 +49,7 @@ async def login(request: Request):
 
 from pydantic import BaseModel
 from database.connection import get_db
-from database.orm import User, OAuthAccount, Waitlist
+from database.orm import User, OAuthAccount
 
 @router.get("/google/callback", name="auth_callback")
 async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
@@ -118,50 +118,12 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
 async def get_me(user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    result = await db.execute(select(Waitlist).where(Waitlist.user_id == user.id))
-    on_waitlist = result.scalar_one_or_none() is not None
     return {
         "name": user.name,
         "email": user.email,
         "avatar_url": user.avatar_url,
         "tier": user.tier,
-        "on_waitlist": on_waitlist,
     }
-
-
-class WaitlistRequest(BaseModel):
-    email: str
-
-
-@router.post("/waitlist")
-async def join_waitlist(body: WaitlistRequest, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    result = await db.execute(select(Waitlist).where(Waitlist.user_id == user.id))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already on waitlist")
-
-    db.add(Waitlist(user_id=user.id, email=body.email))
-    user.bonus_uses = 20
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-
-    resend.Emails.send({
-        "from": "TubeText <contact@send.tubetext.app>",
-        "to": [body.email],
-        "subject": "You're on the TubeText Premium Waitlist!",
-        "html": (
-            f"<p>Hey {user.name},</p>"
-            "<p>Thanks for joining the TubeText Premium waitlist! "
-            "As a thank you, we've added <strong>20 extra free transcriptions</strong> to your account this month (40 total).</p>"
-            "<p>We'll email you as soon as Premium is ready.</p>"
-            "<p>— The TubeText Team</p>"
-        ),
-    })
-
-    return {"success": True}
 
 
 @router.get("/logout")

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { joinWaitlist } from "@/lib/api";
+import { createCheckout } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -13,28 +13,21 @@ interface PremiumGateModalProps {
 }
 
 export default function PremiumGateModal({ loggedIn, onCancel, reason }: PremiumGateModalProps) {
-  const { user, refreshUser } = useAuth();
-  const [email, setEmail] = useState(user?.email || "");
-  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const [loading, setLoading] = useState<"monthly" | "yearly" | "lifetime" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [joined, setJoined] = useState(false);
 
-  async function handleJoinWaitlist() {
-    if (!email.trim()) return;
-    setSubmitting(true);
+  async function handleCheckout(plan: "monthly" | "yearly" | "lifetime") {
+    setLoading(plan);
     setError(null);
     try {
-      await joinWaitlist(email.trim());
-      setJoined(true);
-      await refreshUser();
+      const url = await createCheckout(plan);
+      window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
+      setLoading(null);
     }
   }
-
-  const alreadyOnWaitlist = user?.on_waitlist || joined;
 
   return (
     <div
@@ -42,7 +35,7 @@ export default function PremiumGateModal({ loggedIn, onCancel, reason }: Premium
       onClick={onCancel}
     >
       <div
-        className="animate-slide-up mx-4 w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg"
+        className="animate-slide-up mx-4 w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-center gap-4 text-center">
@@ -52,16 +45,10 @@ export default function PremiumGateModal({ loggedIn, onCancel, reason }: Premium
             </svg>
           </div>
           <p className="text-base font-bold">Unlock Premium</p>
-          {reason && !alreadyOnWaitlist && (
+          {reason && (
             <p className="text-sm font-medium text-yt-red">{reason}</p>
           )}
-          <p className="text-sm text-text-secondary">
-            {!loggedIn
-              ? "Sign in to access premium features."
-              : alreadyOnWaitlist
-                ? "You're on the waitlist! You have 20 extra free transcriptions this month."
-                : "Join the premium waitlist and get 20 extra free transcriptions this month."}
-          </p>
+
           <ul className="w-full space-y-2 text-left text-sm text-text-secondary">
             <li className="flex items-center gap-2">
               <span className="text-yt-red">&#10003;</span>
@@ -80,6 +67,7 @@ export default function PremiumGateModal({ loggedIn, onCancel, reason }: Premium
               Access to free updates for life
             </li>
           </ul>
+
           {!loggedIn ? (
             <a
               href={`${API_URL}/auth/google/login`}
@@ -93,31 +81,54 @@ export default function PremiumGateModal({ loggedIn, onCancel, reason }: Premium
               </svg>
               Sign in with Google
             </a>
-          ) : alreadyOnWaitlist ? (
-            <div className="flex h-10 w-full items-center justify-center rounded-full bg-green-500/10 text-sm font-bold text-green-600">
-              You&apos;re on the waitlist!
-            </div>
           ) : (
-            <>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="h-10 w-full rounded-full border border-border bg-background px-4 text-sm text-text-primary outline-none focus:border-yt-red"
-              />
-              {error && (
-                <p className="text-xs text-yt-red">{error}</p>
-              )}
-              <button
-                onClick={handleJoinWaitlist}
-                disabled={submitting || !email.trim()}
-                className="h-10 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? "Joining..." : "Join Waitlist & Get 20 Extra Uses"}
-              </button>
-            </>
+            <div className="flex w-full gap-3">
+              {/* Monthly plan */}
+              <div className="flex flex-1 flex-col items-center gap-2 rounded-lg border border-border p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-text-secondary">Monthly</p>
+                <p className="text-2xl font-bold">&euro;5<span className="text-sm font-normal text-text-secondary">/mo</span></p>
+                <button
+                  onClick={() => handleCheckout("monthly")}
+                  disabled={loading !== null}
+                  className="h-9 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {loading === "monthly" ? "Redirecting..." : "Subscribe"}
+                </button>
+              </div>
+              {/* Yearly plan */}
+              <div className="flex flex-1 flex-col items-center gap-2 rounded-lg border border-border p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-text-secondary">Yearly</p>
+                <p className="text-2xl font-bold">&euro;49<span className="text-sm font-normal text-text-secondary">/yr</span></p>
+                <button
+                  onClick={() => handleCheckout("yearly")}
+                  disabled={loading !== null}
+                  className="h-9 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {loading === "yearly" ? "Redirecting..." : "Subscribe"}
+                </button>
+              </div>
+              {/* Lifetime plan */}
+              <div className="relative flex flex-1 flex-col items-center gap-2 rounded-lg border-2 border-yt-red p-3">
+                <span className="absolute -top-2.5 rounded-full bg-yt-red px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                  Best value
+                </span>
+                <p className="text-xs font-bold uppercase tracking-wide text-text-secondary">Lifetime</p>
+                <p className="text-2xl font-bold">&euro;79<span className="text-sm font-normal text-text-secondary"> once</span></p>
+                <button
+                  onClick={() => handleCheckout("lifetime")}
+                  disabled={loading !== null}
+                  className="h-9 w-full rounded-full bg-yt-red text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {loading === "lifetime" ? "Redirecting..." : "Buy once"}
+                </button>
+              </div>
+            </div>
           )}
+
+          {error && (
+            <p className="text-xs text-yt-red">{error}</p>
+          )}
+
           <button
             onClick={onCancel}
             className="h-10 w-full rounded-full border border-border bg-card text-sm font-bold text-text-secondary transition-opacity hover:opacity-90"

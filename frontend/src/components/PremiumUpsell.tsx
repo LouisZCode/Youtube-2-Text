@@ -61,9 +61,11 @@ export default function PremiumUpsell({
               }`}
             />
             <span className="text-base font-bold">Download PDF</span>
-            <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
-              Free
-            </span>
+            {!isPremium && (
+              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
+                Free
+              </span>
+            )}
           </div>
           <p className="text-sm leading-relaxed text-text-secondary">
             Download the full transcript as a formatted PDF file.
@@ -86,9 +88,15 @@ export default function PremiumUpsell({
               }`}
             />
             <span className="text-base font-bold">Summarize</span>
-            <span className="rounded-full bg-yt-red/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yt-red">
-              Premium
-            </span>
+            {isPremium ? (
+              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
+                Included
+              </span>
+            ) : (
+              <span className="rounded-full bg-yt-red/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yt-red">
+                Premium
+              </span>
+            )}
           </div>
           <p className="text-sm leading-relaxed text-text-secondary">
             Get a concise AI-powered summary of the entire video content.
@@ -108,9 +116,15 @@ export default function PremiumUpsell({
               }`}
             />
             <span className="text-base font-bold">Translate</span>
-            <span className="rounded-full bg-yt-red/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yt-red">
-              Premium
-            </span>
+            {isPremium ? (
+              <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
+                Included
+              </span>
+            ) : (
+              <span className="rounded-full bg-yt-red/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yt-red">
+                Premium
+              </span>
+            )}
           </div>
           <p className="text-sm leading-relaxed text-text-secondary">
             Translate the full transcript into another language.
