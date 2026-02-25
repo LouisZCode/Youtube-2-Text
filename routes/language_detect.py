@@ -1,5 +1,10 @@
 from fastapi import APIRouter
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from .utils import extract_video_id
 
@@ -10,7 +15,12 @@ router = APIRouter()
 async def get_video_languages(video_url: str):
     try:
         video_id = extract_video_id(video_url)
-        ytt_api = YouTubeTranscriptApi()
+        ytt_api = YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=os.getenv("WEBSHARE_PROXY_USERNAME"),
+                proxy_password=os.getenv("WEBSHARE_PROXY_PASSWORD"),
+            )
+        )
         transcript_list = ytt_api.list(video_id)
 
         languages = [

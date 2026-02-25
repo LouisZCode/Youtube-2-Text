@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
@@ -22,7 +23,13 @@ router = APIRouter()
 serializer = URLSafeSerializer(COOKIE_SECRET_KEY)
 
 @router.post("/video/")
-async def get_video_transcript(request: Request, response : Response, video_url: str, language: str = "en", user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_video_transcript(
+    request: Request,
+    response : Response,
+    video_url: str,
+    language: str = "en",
+    user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)):
 
     if not user:
 
@@ -67,7 +74,12 @@ async def get_video_transcript(request: Request, response : Response, video_url:
 
     try:
         video_id = extract_video_id(video_url)
-        ytt_api = YouTubeTranscriptApi()
+        ytt_api = YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=os.getenv("WEBSHARE_PROXY_USERNAME"),
+                proxy_password=os.getenv("WEBSHARE_PROXY_PASSWORD"),
+            )
+        )
 
         transcript_list = ytt_api.list(video_id)
         available_codes = [t.language_code for t in transcript_list]

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
+
 from authlib.integrations.starlette_client import OAuth
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -72,11 +73,10 @@ async def auth_callback(request: Request, db: AsyncSession = Depends(get_db)):
     oauth_account = result.scalar_one_or_none()
 
     if oauth_account:
-        # Returning user — fetch their record
         user_result = await db.execute(select(User).where(User.id == oauth_account.user_id))
         user = user_result.scalar_one()
+
     else:
-        # New user — create User + OAuthAccount rows
         user = User(email=email, name=name, avatar_url=avatar)
         db.add(user)
         await db.flush()  # generates user.id before we reference it below
