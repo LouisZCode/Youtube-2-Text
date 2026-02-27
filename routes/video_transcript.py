@@ -81,12 +81,6 @@ async def get_video_transcript(
             )
         )
 
-        transcript_list = ytt_api.list(video_id)
-        available_codes = [t.language_code for t in transcript_list]
-
-        if language not in available_codes:
-            return {"success": False, "error": "No captions available for this video"}
-
         transcript = ytt_api.fetch(video_id, languages=[language])
         snippets = transcript.snippets
         segments = merge_segments(snippets)
