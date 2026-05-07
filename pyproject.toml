@@ -26,4 +26,5 @@ dependencies = [
     "uvicorn>=0.40.0",
     "youtube-transcript-api>=1.2.4",
     "yt-dlp>=2026.1.31",
+    "langfuse>=4.5.1",
 ]
