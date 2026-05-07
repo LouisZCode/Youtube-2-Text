@@ -61,6 +61,7 @@ async def get_video_transcript_premium(video_url: str, language: str = "en", use
                 "outtmpl": f"{output_path}.%(ext)s",
                 "quiet": True,
                 "no_warnings": True,
+                "proxy": f"http://{os.getenv('WEBSHARE_PROXY_USERNAME')}-rotate:{os.getenv('WEBSHARE_PROXY_PASSWORD')}@p.webshare.io:80",
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
