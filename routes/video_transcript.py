@@ -9,6 +9,7 @@ from .utils import extract_video_id, merge_segments
 from itsdangerous import URLSafeSerializer, BadSignature
 
 import os
+import sentry_sdk
 from dotenv import load_dotenv
 
 from dependencies.auth import get_current_user
@@ -95,5 +96,6 @@ async def get_video_transcript(
             "word_count": sum(len(s.text.split()) for s in snippets),
         }
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         print(f"  FAILED: {type(e).__name__}: {e}")
         return {"success": False, "error": str(e)}

@@ -1,5 +1,6 @@
 import json
 import logging
+import sentry_sdk
 from typing import List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
@@ -29,7 +30,8 @@ async def stream_video_translation(request: TranslateStreamRequest, user=Depends
                 chunk_text = " ".join(seg.text for seg in chunk_segments)
                 translated = await translate(chunk_text, request.language)
                 yield f"data: {json.dumps({'translation': translated})}\n\n"
-            except Exception:
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
                 logger.exception("Translation chunk failed")
                 yield f"data: {json.dumps({'error': 'Translation service temporarily unavailable'})}\n\n"
                 return

@@ -7,8 +7,19 @@ from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import os
+import sentry_sdk
 from dotenv import load_dotenv
 load_dotenv()
+
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        environment=os.getenv("RAILWAY_ENVIRONMENT_NAME", "development"),
+        release=os.getenv("RAILWAY_GIT_COMMIT_SHA", "local")[:7],
+        send_default_pii=True,
+        traces_sample_rate=0.0,
+    )
 
 from routes import all_routes
 
@@ -30,4 +41,8 @@ for route in all_routes:
 @app.get("/health/")
 def check_health():
     return {"status" : "ok"}
+
+@app.get("/sentry-test/")
+def sentry_test():
+    1 / 0
 

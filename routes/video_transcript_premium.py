@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from deepgram import DeepgramClient
 import yt_dlp
 import os
+import sentry_sdk
 import tempfile
 
 from dotenv import load_dotenv
@@ -79,5 +80,6 @@ async def get_video_transcript_premium(video_url: str, language: str = "en", use
             "word_count": word_count,
         }
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         print(f"  FAILED: {type(e).__name__}: {e}")
         return {"success": False, "error": str(e)}

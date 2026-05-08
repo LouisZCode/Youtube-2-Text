@@ -3,6 +3,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import WebshareProxyConfig
 
 import os
+import sentry_sdk
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -34,5 +35,6 @@ async def get_video_languages(video_url: str):
             "default": languages[0]["code"] if languages else None,
         }
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         print(f"[language_detect] FAILED for video_url={video_url}: {type(e).__name__}: {e}")
         return {"success": False, "languages": [], "default": None, "error": str(e)}
