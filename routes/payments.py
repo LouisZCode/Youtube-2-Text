@@ -84,7 +84,7 @@ async def handle_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid payload")
 
     event_type = event["type"]
-    data_object = event["data"]["object"]
+    data_object = event["data"]["object"].to_dict_recursive()
 
     # ── checkout.session.completed ──────────────────────────────────
     if event_type == "checkout.session.completed":
