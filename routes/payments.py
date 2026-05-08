@@ -84,11 +84,12 @@ async def handle_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid payload")
 
     event_type = event["type"]
-    data_object = event["data"]["object"].to_dict_recursive()
+    data_object = event["data"]["object"]
 
     # ── checkout.session.completed ──────────────────────────────────
     if event_type == "checkout.session.completed":
-        user_id = data_object.get("metadata", {}).get("user_id")
+        metadata = data_object["metadata"] if "metadata" in data_object else {}
+        user_id = metadata["user_id"] if "user_id" in metadata else None
         if not user_id:
             logger.warning("Checkout session missing user_id in metadata")
             return {"ok": True}
@@ -100,7 +101,7 @@ async def handle_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             return {"ok": True}
 
         stripe_customer_id = data_object["customer"]
-        stripe_subscription_id = data_object.get("subscription")  # null for one-time
+        stripe_subscription_id = data_object["subscription"] if "subscription" in data_object else None
         # Retrieve the price ID from line items
         line_items = await asyncio.to_thread(
             stripe.checkout.Session.list_line_items, data_object["id"], limit=1
