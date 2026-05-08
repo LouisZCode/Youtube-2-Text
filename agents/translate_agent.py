@@ -1,9 +1,12 @@
 import os
 import yaml
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 
 load_dotenv()
+
+from langchain_openai import ChatOpenAI
+from langfuse import observe, propagate_attributes
+from langfuse.langchain import CallbackHandler
 
 def load_prompts():
     with open("agents/prompts.yaml", "r", encoding="utf-8") as f:
@@ -17,16 +20,24 @@ model = ChatOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
     extra_body={
+        "usage": {"include": True},
         "provider": {
             "order": ["cerebras"],
             "allow_fallbacks": True,
-        }
+        },
     },
 )
 
+langfuse_handler = CallbackHandler()
+
+@observe(name="translate")
 async def translate(text: str, language: str) -> str:
-    response = await model.ainvoke([
-        {"role": "system", "content": translate_prompt},
-        {"role": "user", "content": f"Translate the following to {language}:\n\n{text}"},
-    ])
+    with propagate_attributes(tags=[f"language:{language}"]):
+        response = await model.ainvoke(
+            [
+                {"role": "system", "content": translate_prompt},
+                {"role": "user", "content": f"Translate the following to {language}:\n\n{text}"},
+            ],
+            config={"callbacks": [langfuse_handler]},
+        )
     return response.content

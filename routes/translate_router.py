@@ -6,9 +6,11 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 from dependencies.auth import require_premium
 from fastapi.responses import StreamingResponse
+from langfuse import get_client, propagate_attributes
 from agents.translate_agent import translate
 
 logger = logging.getLogger(__name__)
+langfuse = get_client()
 
 router = APIRouter()
 CHUNK_SIZE = 1
@@ -24,18 +26,34 @@ class TranslateStreamRequest(BaseModel):
 @router.post("/video/translate")
 async def stream_video_translation(request: TranslateStreamRequest, user=Depends(require_premium)):
     async def event_generator():
-        for i in range(0, len(request.segments), CHUNK_SIZE):
-            try:
-                chunk_segments = request.segments[i : i + CHUNK_SIZE]
-                chunk_text = " ".join(seg.text for seg in chunk_segments)
-                translated = await translate(chunk_text, request.language)
-                yield f"data: {json.dumps({'translation': translated})}\n\n"
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                logger.exception("Translation chunk failed")
-                yield f"data: {json.dumps({'error': 'Translation service temporarily unavailable'})}\n\n"
-                return
-        yield f"data: {json.dumps({'done': True})}\n\n"
+        with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
+            with propagate_attributes(tags=[f"language:{request.language}"]):
+                span.update(input={
+                    "language": request.language,
+                    "segments_count": len(request.segments),
+                })
+                translated_chunks: list[str] = []
+                for i in range(0, len(request.segments), CHUNK_SIZE):
+                    try:
+                        chunk_segments = request.segments[i : i + CHUNK_SIZE]
+                        chunk_text = " ".join(seg.text for seg in chunk_segments)
+                        translated = await translate(chunk_text, request.language)
+                        translated_chunks.append(translated)
+                        yield f"data: {json.dumps({'translation': translated})}\n\n"
+                    except Exception as e:
+                        sentry_sdk.capture_exception(e)
+                        logger.exception("Translation chunk failed")
+                        span.update(
+                            level="ERROR",
+                            status_message=f"chunk {i} failed: {type(e).__name__}",
+                        )
+                        yield f"data: {json.dumps({'error': 'Translation service temporarily unavailable'})}\n\n"
+                        return
+                span.update(output={
+                    "chunks_completed": len(translated_chunks),
+                    "translation": " ".join(translated_chunks),
+                })
+                yield f"data: {json.dumps({'done': True})}\n\n"
 
     return StreamingResponse(
         event_generator(),
