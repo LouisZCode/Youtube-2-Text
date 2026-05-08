@@ -42,7 +42,3 @@ for route in all_routes:
 def check_health():
     return {"status" : "ok"}
 
-@app.get("/sentry-test/")
-def sentry_test():
-    1 / 0
-
