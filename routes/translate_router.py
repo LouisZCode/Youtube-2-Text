@@ -28,9 +28,11 @@ async def stream_video_translation(request: TranslateStreamRequest, user=Depends
     async def event_generator():
         with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
             with propagate_attributes(tags=[f"language:{request.language}"]):
+                source_text = " ".join(seg.text for seg in request.segments)
                 span.update(input={
                     "language": request.language,
                     "segments_count": len(request.segments),
+                    "source_text": source_text,
                 })
                 translated_chunks: list[str] = []
                 for i in range(0, len(request.segments), CHUNK_SIZE):
