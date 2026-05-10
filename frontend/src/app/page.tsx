@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TranscriptResult, Mode } from "@/lib/types";
+import { TranscriptResult, Mode, ErrorCode } from "@/lib/types";
 import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf, fetchLanguages } from "@/lib/api";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
@@ -34,7 +34,7 @@ export default function Home() {
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   const [detectedLangName, setDetectedLangName] = useState<string | null>(null);
   const [detectingLang, setDetectingLang] = useState(false);
-  const [noCaptions, setNoCaptions] = useState(false);
+  const [langDetectError, setLangDetectError] = useState<{ code: ErrorCode; message: string } | null>(null);
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-detect caption language when a valid YouTube URL is entered
@@ -42,7 +42,7 @@ export default function Home() {
     if (detectTimer.current) clearTimeout(detectTimer.current);
     setDetectedLang(null);
     setDetectedLangName(null);
-    setNoCaptions(false);
+    setLangDetectError(null);
 
     if (!YT_URL_RE.test(url.trim())) return;
 
@@ -54,7 +54,7 @@ export default function Home() {
         const match = data.languages.find((l) => l.code === data.default);
         setDetectedLangName(match?.name || data.default);
       } else {
-        setNoCaptions(true);
+        setLangDetectError({ code: data.error_code ?? "unknown", message: data.error ?? "" });
       }
       setDetectingLang(false);
     }, 600);
@@ -164,7 +164,7 @@ export default function Home() {
           detectedLang={detectedLang}
           detectedLangName={detectedLangName}
           detectingLang={detectingLang}
-          noCaptions={noCaptions}
+          langDetectError={langDetectError}
           onUrlChange={setUrl}
           onModeChange={setMode}
           onSubmit={handleSubmit}

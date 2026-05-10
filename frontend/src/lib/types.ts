@@ -12,9 +12,12 @@ export interface TranscriptResult {
   word_count: number;
 }
 
+export type ErrorCode = "transient" | "no_captions" | "unavailable" | "bad_input" | "unknown";
+
 export interface TranscriptError {
   success: false;
   error: string;
+  error_code?: ErrorCode;
 }
 
 export type TranscriptResponse = TranscriptResult | TranscriptError;

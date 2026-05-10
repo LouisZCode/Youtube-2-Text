@@ -1,7 +1,7 @@
 import re
 
 
-def extract_video_id(url: str) -> str | None:
+def extract_video_id(url: str) -> str:
     patterns = [
         r'(?:v=|\/)([\w-]{11})(?:\?|&|$)',
         r'youtu\.be\/([\w-]{11})',
@@ -9,7 +9,7 @@ def extract_video_id(url: str) -> str | None:
     for p in patterns:
         if match := re.search(p, url):
             return match.group(1)
-    return None
+    raise ValueError(f"Could not extract YouTube video ID from URL: {url!r}")
 
 
 def format_timestamp(seconds: float) -> str:

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Mode } from "@/lib/types";
+import { Mode, ErrorCode } from "@/lib/types";
 import PremiumGateModal from "./PremiumGateModal";
 
 interface HeroProps {
@@ -12,7 +12,7 @@ interface HeroProps {
   detectedLang: string | null;
   detectedLangName: string | null;
   detectingLang: boolean;
-  noCaptions: boolean;
+  langDetectError: { code: ErrorCode; message: string } | null;
   onUrlChange: (url: string) => void;
   onModeChange: (mode: Mode) => void;
   onSubmit: () => void;
@@ -32,7 +32,7 @@ const langToFlag: Record<string, string> = {
   he: "\u{1F1EE}\u{1F1F1}", ms: "\u{1F1F2}\u{1F1FE}", fil: "\u{1F1F5}\u{1F1ED}",
 };
 
-export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, noCaptions, onUrlChange, onModeChange, onSubmit }: HeroProps) {
+export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, langDetectError, onUrlChange, onModeChange, onSubmit }: HeroProps) {
   const { user } = useAuth();
   const [showGate, setShowGate] = useState(false);
   const buttonLabel = "GET TRANSCRIPTION";
@@ -126,7 +126,7 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
         {/* Action button */}
         <button
           type="submit"
-          disabled={loading || !url.trim() || detectingLang || (noCaptions && mode !== "pro")}
+          disabled={loading || !url.trim() || detectingLang || (!!langDetectError && (langDetectError.code === "no_captions" || langDetectError.code === "unavailable") && mode !== "pro")}
           className="h-12 w-full rounded-full bg-yt-red text-base font-bold tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? (
@@ -148,9 +148,15 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
           ) : buttonLabel}
         </button>
 
-        {noCaptions && mode !== "pro" && (
+        {langDetectError && langDetectError.code !== "bad_input" && (
           <p className="text-sm text-text-secondary text-center -mt-4">
-            No captions available for this video. Upgrade to Premium to get smart transcriptions.
+            {langDetectError.code === "no_captions"
+              ? (mode !== "pro" ? "No captions available for this video. Upgrade to Premium to get smart transcriptions." : null)
+              : langDetectError.code === "unavailable"
+                ? "This video is private, deleted, age-restricted, or unavailable in your region."
+                : langDetectError.code === "transient"
+                  ? "YouTube is throttling us right now — please try again in a moment."
+                  : "Couldn't detect captions. You can still try fetching the transcript."}
           </p>
         )}
       </form>

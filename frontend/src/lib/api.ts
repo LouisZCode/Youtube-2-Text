@@ -1,4 +1,4 @@
-import { TranscriptResponse, SummaryResponse, TranslateResponse, Segment, TranslateChunkEvent } from "./types";
+import { TranscriptResponse, SummaryResponse, TranslateResponse, Segment, TranslateChunkEvent, ErrorCode } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -30,10 +30,18 @@ export interface VideoLanguage {
 
 export async function fetchLanguages(
   videoUrl: string
-): Promise<{ success: boolean; languages: VideoLanguage[]; default: string | null }> {
+): Promise<{
+  success: boolean;
+  languages: VideoLanguage[];
+  default: string | null;
+  error_code?: ErrorCode;
+  error?: string;
+}> {
   const params = new URLSearchParams({ video_url: videoUrl });
   const res = await fetch(`${API_URL}/video/languages?${params}`);
-  if (!res.ok) return { success: false, languages: [], default: null };
+  if (!res.ok) {
+    return { success: false, languages: [], default: null, error_code: "unknown", error: "Network error" };
+  }
   return res.json();
 }
 
