@@ -6,6 +6,7 @@ import sentry_sdk
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from itsdangerous import BadSignature, URLSafeSerializer
+from langfuse import get_client, propagate_attributes
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import WebshareProxyConfig
@@ -18,6 +19,7 @@ from .youtube_proxy import classify_youtube_error, error_response, with_retries
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+langfuse = get_client()
 
 COOKIE_SECRET_KEY = os.getenv("COOKIE_SECRET_KEY")
 
@@ -79,40 +81,67 @@ async def get_video_transcript(
         db.add(user)
         await db.commit()
 
-    try:
-        video_id = extract_video_id(video_url)
-    except ValueError as e:
-        return error_response(e)
+    with langfuse.start_as_current_observation(
+        name="video-transcript-free", as_type="span"
+    ) as span:
+        tier_label = user.tier if user else "anonymous"
+        user_id = str(user.id) if user else "anonymous"
 
-    def _fetch():
-        ytt_api = YouTubeTranscriptApi(
-            proxy_config=WebshareProxyConfig(
-                proxy_username=os.getenv("WEBSHARE_PROXY_USERNAME"),
-                proxy_password=os.getenv("WEBSHARE_PROXY_PASSWORD"),
-            )
-        )
-        return ytt_api.fetch(video_id, languages=[language])
+        with propagate_attributes(
+            user_id=user_id,
+            tags=[f"language:{language}", f"tier:{tier_label}"],
+        ):
+            span.update(input={
+                "video_url": video_url,
+                "language": language,
+                "tier": tier_label,
+            })
 
-    try:
-        transcript = await with_retries(_fetch)
-    except Exception as e:
-        sentry_sdk.capture_exception(e)
-        logger.warning("video_transcript failed for %s: %s", video_url, type(e).__name__)
-        if user and user.tier != "premium" and classify_youtube_error(e) == "transient":
-            user.usage_count = max(0, user.usage_count - 1)
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-        return error_response(e)
+            try:
+                video_id = extract_video_id(video_url)
+            except ValueError as e:
+                span.update(level="ERROR", status_message=f"bad_input: {type(e).__name__}")
+                return error_response(e)
 
-    snippets = transcript.snippets
-    segments = merge_segments(snippets)
+            def _fetch():
+                ytt_api = YouTubeTranscriptApi(
+                    proxy_config=WebshareProxyConfig(
+                        proxy_username=os.getenv("WEBSHARE_PROXY_USERNAME"),
+                        proxy_password=os.getenv("WEBSHARE_PROXY_PASSWORD"),
+                    )
+                )
+                return ytt_api.fetch(video_id, languages=[language])
 
-    return {
-        "success": True,
-        "video_id": video_id,
-        "source": "captions",
-        "language": language,
-        "segments": segments,
-        "word_count": sum(len(s.text.split()) for s in snippets),
-    }
+            try:
+                transcript = await with_retries(_fetch)
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                code = classify_youtube_error(e)
+                logger.warning("video_transcript failed for %s: %s", video_url, type(e).__name__)
+                span.update(level="ERROR", status_message=f"{code}: {type(e).__name__}")
+                if user and user.tier != "premium" and code == "transient":
+                    user.usage_count = max(0, user.usage_count - 1)
+                    db.add(user)
+                    await db.commit()
+                    await db.refresh(user)
+                return error_response(e)
+
+            snippets = transcript.snippets
+            segments = merge_segments(snippets)
+            word_count = sum(len(s.text.split()) for s in snippets)
+
+            span.update(output={
+                "video_id": video_id,
+                "segments_count": len(segments),
+                "word_count": word_count,
+                "source": "captions",
+            })
+
+            return {
+                "success": True,
+                "video_id": video_id,
+                "source": "captions",
+                "language": language,
+                "segments": segments,
+                "word_count": word_count,
+            }
