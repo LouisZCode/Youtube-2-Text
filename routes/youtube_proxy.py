@@ -19,6 +19,45 @@ from youtube_transcript_api._errors import (
     VideoUnplayable,
     YouTubeRequestFailed,
 )
+from yt_dlp.utils import (
+    DownloadError,
+    ExtractorError,
+    GeoRestrictedError,
+    UnavailableVideoError,
+)
+
+_YTDLP_TRANSIENT_PATTERNS = (
+    "sign in to confirm you're not a bot",
+    "sign in to confirm you’re not a bot",
+    "rate-limited",
+    "http error 429",
+    "http error 5",
+    "connection reset",
+    "remote end closed connection",
+    "read timed out",
+)
+
+_YTDLP_UNAVAILABLE_PATTERNS = (
+    "private video",
+    "video unavailable",
+    "this video has been removed",
+    "this video is no longer available",
+    "members-only",
+    "join this channel",
+    "video is age-restricted",
+)
+
+
+def _classify_ytdlp(exc: BaseException) -> str | None:
+    if isinstance(exc, (UnavailableVideoError, GeoRestrictedError)):
+        return "unavailable"
+    if isinstance(exc, (DownloadError, ExtractorError)):
+        msg = str(exc).lower()
+        if any(p in msg for p in _YTDLP_TRANSIENT_PATTERNS):
+            return "transient"
+        if any(p in msg for p in _YTDLP_UNAVAILABLE_PATTERNS):
+            return "unavailable"
+    return None
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +88,9 @@ def classify_youtube_error(exc: BaseException) -> ErrorCode:
         return "unavailable"
     if isinstance(exc, (InvalidVideoId, ValueError)):
         return "bad_input"
+    ytdlp_code = _classify_ytdlp(exc)
+    if ytdlp_code:
+        return ytdlp_code
     return "unknown"
 
 
