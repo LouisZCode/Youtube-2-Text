@@ -18,8 +18,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 langfuse = get_client()
 
+DEEPGRAM_PER_SECOND_USD = float(os.getenv("DEEPGRAM_PER_SECOND_USD", "0.0000725"))
 
-def _transcribe_with_deepgram(mp3_path: str) -> tuple[list[dict], int]:
+
+def _transcribe_with_deepgram(mp3_path: str, language: str) -> tuple[list[dict], int, float]:
     """Transcribe MP3 file using Deepgram Nova-3."""
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
@@ -36,7 +38,7 @@ def _transcribe_with_deepgram(mp3_path: str) -> tuple[list[dict], int]:
         smart_format=True,
         punctuate=True,
         utterances=True,
-        language="en",
+        language=language,
     )
 
     utterances = response.results.utterances
@@ -44,8 +46,9 @@ def _transcribe_with_deepgram(mp3_path: str) -> tuple[list[dict], int]:
 
     full_text = response.results.channels[0].alternatives[0].transcript
     word_count = len(full_text.split())
+    duration = float(response.metadata.duration)
 
-    return segments, word_count
+    return segments, word_count, duration
 
 
 @router.post("/video/premium/")
@@ -96,10 +99,10 @@ async def get_video_transcript_premium(
                         ydl.extract_info(video_url, download=True)
 
                     mp3_file = f"{output_path}.mp3"
-                    return _transcribe_with_deepgram(mp3_file)
+                    return _transcribe_with_deepgram(mp3_file, language)
 
             try:
-                segments, word_count = await with_retries(
+                segments, word_count, duration = await with_retries(
                     _pipeline, attempts=2, backoff=(3.0,)
                 )
             except Exception as e:
@@ -112,10 +115,25 @@ async def get_video_transcript_premium(
                 span.update(level="ERROR", status_message=f"{code}: {type(e).__name__}")
                 return error_response(e)
 
+            cost_usd = round(duration * DEEPGRAM_PER_SECOND_USD, 6)
+
+            with langfuse.start_as_current_observation(
+                name="deepgram-transcribe",
+                as_type="generation",
+                model="nova-3",
+                input={"language": language, "audio_format": "mp3"},
+                output={"word_count": word_count, "segments_count": len(segments)},
+                usage_details={"seconds": int(duration)},
+                cost_details={"input": cost_usd},
+            ):
+                pass
+
             span.update(output={
                 "video_id": video_id,
                 "segments_count": len(segments),
                 "word_count": word_count,
+                "audio_duration_seconds": round(duration, 2),
+                "cost_usd": cost_usd,
                 "source": "audio_transcription",
             })
 
