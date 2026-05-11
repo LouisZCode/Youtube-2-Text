@@ -3,7 +3,7 @@ import sentry_sdk
 from pydantic import BaseModel
 from agents import summarize
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from langfuse import get_client, propagate_attributes
 from dependencies.auth import require_premium
 
@@ -19,14 +19,21 @@ class SummaryRequest(BaseModel):
 
 
 @router.post("/video/summary")
-async def create_video_summary(request: SummaryRequest, user=Depends(require_premium)):
+async def create_video_summary(
+    request: SummaryRequest,
+    user=Depends(require_premium),
+    x_session_id: str | None = Header(None, alias="X-Session-Id"),
+):
     with langfuse.start_as_current_observation(
         name="video-summary", as_type="span"
     ) as span:
-        with propagate_attributes(
-            user_id=str(user.id),
-            tags=[f"language:{request.language}", "tier:premium"],
-        ):
+        attrs = {
+            "user_id": str(user.id),
+            "tags": [f"language:{request.language}", "tier:premium"],
+        }
+        if x_session_id:
+            attrs["session_id"] = x_session_id
+        with propagate_attributes(**attrs):
             span.update(input={
                 "transcription": request.transcription,
                 "transcription_word_count": len(request.transcription.split()),

@@ -65,10 +65,13 @@ export async function fetchTranscript(
 
 export async function fetchTranscriptPremium(
   videoUrl: string,
-  language: string = "en"
+  language: string = "en",
+  sessionId?: string | null,
 ): Promise<TranscriptResponse> {
   const params = new URLSearchParams({ video_url: videoUrl, language });
-  const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST", credentials: "include" });
+  const headers: Record<string, string> = {};
+  if (sessionId) headers["X-Session-Id"] = sessionId;
+  const res = await fetch(`${API_URL}/video/premium/?${params}`, { method: "POST", credentials: "include", headers });
 
   if (!res.ok) {
     if (res.status === 401) throw new Error("__AUTH__Sign in required");
@@ -82,10 +85,13 @@ export async function fetchTranscriptPremium(
 export async function fetchSummary(
   transcription: string,
   language: string = "en",
+  sessionId?: string | null,
 ): Promise<SummaryResponse> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (sessionId) headers["X-Session-Id"] = sessionId;
   const res = await fetch(`${API_URL}/video/summary`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ transcription, language }),
     credentials: "include",
   });
@@ -102,10 +108,13 @@ export async function fetchTranslationStream(
   segments: Segment[],
   language: string,
   onChunk: (text: string) => void,
+  sessionId?: string | null,
 ): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (sessionId) headers["X-Session-Id"] = sessionId;
   const res = await fetch(`${API_URL}/video/translate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ segments, language }),
     credentials: "include",
   });

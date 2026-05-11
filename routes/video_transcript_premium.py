@@ -6,7 +6,7 @@ import sentry_sdk
 import yt_dlp
 from deepgram import DeepgramClient
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from langfuse import get_client, propagate_attributes
 
 from .utils import extract_video_id, merge_segments
@@ -18,7 +18,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 langfuse = get_client()
 
-DEEPGRAM_PER_SECOND_USD = float(os.getenv("DEEPGRAM_PER_SECOND_USD", "0.0000725"))
+DEEPGRAM_PER_SECOND_USD = float(os.getenv("DEEPGRAM_PER_SECOND_USD", "0.0000723"))
 
 
 def _transcribe_with_deepgram(mp3_path: str, language: str) -> tuple[list[dict], int, float]:
@@ -53,15 +53,21 @@ def _transcribe_with_deepgram(mp3_path: str, language: str) -> tuple[list[dict],
 
 @router.post("/video/premium/")
 async def get_video_transcript_premium(
-    video_url: str, language: str = "en", user=Depends(require_premium)
+    video_url: str,
+    language: str = "en",
+    user=Depends(require_premium),
+    x_session_id: str | None = Header(None, alias="X-Session-Id"),
 ):
     with langfuse.start_as_current_observation(
         name="video-transcript-premium", as_type="span"
     ) as span:
-        with propagate_attributes(
-            user_id=str(user.id),
-            tags=[f"language:{language}", "tier:premium"],
-        ):
+        attrs = {
+            "user_id": str(user.id),
+            "tags": [f"language:{language}", "tier:premium"],
+        }
+        if x_session_id:
+            attrs["session_id"] = x_session_id
+        with propagate_attributes(**attrs):
             span.update(input={
                 "video_url": video_url,
                 "language": language,

@@ -3,7 +3,7 @@ import logging
 import sentry_sdk
 from typing import List
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from dependencies.auth import require_premium
 from fastapi.responses import StreamingResponse
 from langfuse import get_client, propagate_attributes
@@ -24,13 +24,20 @@ class TranslateStreamRequest(BaseModel):
     language: str
 
 @router.post("/video/translate")
-async def stream_video_translation(request: TranslateStreamRequest, user=Depends(require_premium)):
+async def stream_video_translation(
+    request: TranslateStreamRequest,
+    user=Depends(require_premium),
+    x_session_id: str | None = Header(None, alias="X-Session-Id"),
+):
     async def event_generator():
         with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
-            with propagate_attributes(
-                user_id=str(user.id),
-                tags=[f"language:{request.language}", "tier:premium"],
-            ):
+            attrs = {
+                "user_id": str(user.id),
+                "tags": [f"language:{request.language}", "tier:premium"],
+            }
+            if x_session_id:
+                attrs["session_id"] = x_session_id
+            with propagate_attributes(**attrs):
                 source_text = " ".join(seg.text for seg in request.segments)
                 span.update(input={
                     "language": request.language,

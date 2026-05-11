@@ -35,6 +35,7 @@ export default function Home() {
   const [detectedLangName, setDetectedLangName] = useState<string | null>(null);
   const [detectingLang, setDetectingLang] = useState(false);
   const [langDetectError, setLangDetectError] = useState<{ code: ErrorCode; message: string } | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-detect caption language when a valid YouTube URL is entered
@@ -44,8 +45,12 @@ export default function Home() {
     setDetectedLangName(null);
     setLangDetectError(null);
 
-    if (!YT_URL_RE.test(url.trim())) return;
+    if (!YT_URL_RE.test(url.trim())) {
+      setSessionId(null);
+      return;
+    }
 
+    setSessionId(crypto.randomUUID());
     setDetectingLang(true);
     detectTimer.current = setTimeout(async () => {
       const data = await fetchLanguages(url.trim());
@@ -99,8 +104,9 @@ export default function Home() {
     const start = performance.now();
 
     try {
-      const fetcher = mode === "pro" ? fetchTranscriptPremium : fetchTranscript;
-      const data = await fetcher(url, detectedLang || "en");
+      const data = mode === "pro"
+        ? await fetchTranscriptPremium(url, detectedLang || "en", sessionId)
+        : await fetchTranscript(url, detectedLang || "en");
 
       if (!data.success) {
         setError(data.error);
@@ -125,7 +131,7 @@ export default function Home() {
     setShowSignIn(false);
     try {
       const transcription = result.segments.map((s) => s.text).join(" ");
-      const summaryData = await fetchSummary(transcription, detectedLang || "en");
+      const summaryData = await fetchSummary(transcription, detectedLang || "en", sessionId);
       setSummary(summaryData.summary);
     } catch (err) {
       handleApiError(err);
@@ -144,7 +150,7 @@ export default function Home() {
     try {
       await fetchTranslationStream(result.segments, language, (chunk) => {
         setTranslation((prev) => (prev || "") + chunk + "\n\n");
-      });
+      }, sessionId);
     } catch (err) {
       handleApiError(err);
     } finally {
