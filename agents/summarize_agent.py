@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langchain_openai import ChatOpenAI
+from langfuse import observe, propagate_attributes
+from langfuse.langchain import CallbackHandler
 
 
 def load_prompts():
@@ -29,10 +31,17 @@ model = ChatOpenAI(
     },
 )
 
+langfuse_handler = CallbackHandler()
 
-async def summarize(text: str) -> str:
-    response = await model.ainvoke([
-        {"role": "system", "content": summary_prompt},
-        {"role": "user", "content": text},
-    ])
+
+@observe(name="summarize")
+async def summarize(text: str, language: str = "en") -> str:
+    with propagate_attributes(tags=[f"language:{language}"]):
+        response = await model.ainvoke(
+            [
+                {"role": "system", "content": summary_prompt},
+                {"role": "user", "content": text},
+            ],
+            config={"callbacks": [langfuse_handler]},
+        )
     return response.content

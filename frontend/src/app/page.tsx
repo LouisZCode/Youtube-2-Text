@@ -125,7 +125,7 @@ export default function Home() {
     setShowSignIn(false);
     try {
       const transcription = result.segments.map((s) => s.text).join(" ");
-      const summaryData = await fetchSummary(transcription);
+      const summaryData = await fetchSummary(transcription, detectedLang || "en");
       setSummary(summaryData.summary);
     } catch (err) {
       handleApiError(err);

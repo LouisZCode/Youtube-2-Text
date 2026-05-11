@@ -27,7 +27,10 @@ class TranslateStreamRequest(BaseModel):
 async def stream_video_translation(request: TranslateStreamRequest, user=Depends(require_premium)):
     async def event_generator():
         with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
-            with propagate_attributes(tags=[f"language:{request.language}"]):
+            with propagate_attributes(
+                user_id=str(user.id),
+                tags=[f"language:{request.language}", "tier:premium"],
+            ):
                 source_text = " ".join(seg.text for seg in request.segments)
                 span.update(input={
                     "language": request.language,

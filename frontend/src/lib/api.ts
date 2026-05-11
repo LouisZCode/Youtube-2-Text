@@ -79,11 +79,14 @@ export async function fetchTranscriptPremium(
   return res.json();
 }
 
-export async function fetchSummary(transcription: string): Promise<SummaryResponse> {
+export async function fetchSummary(
+  transcription: string,
+  language: string = "en",
+): Promise<SummaryResponse> {
   const res = await fetch(`${API_URL}/video/summary`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transcription }),
+    body: JSON.stringify({ transcription, language }),
     credentials: "include",
   });
   if (!res.ok) {
