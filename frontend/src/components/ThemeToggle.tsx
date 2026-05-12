@@ -1,16 +1,12 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import { SunIcon, MoonIcon } from "./icons";
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { theme, resolvedTheme, setTheme } = useTheme();
 
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) return <div className="h-9 w-9" />;
+  if (!resolvedTheme) return <div className="h-9 w-9" />;
 
   return (
     <button

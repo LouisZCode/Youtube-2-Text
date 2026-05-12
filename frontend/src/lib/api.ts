@@ -1,4 +1,4 @@
-import { TranscriptResponse, SummaryResponse, TranslateResponse, Segment, TranslateChunkEvent, ErrorCode } from "./types";
+import { TranscriptResponse, SummaryResponse, Segment, TranslateChunkEvent, ErrorCode } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 

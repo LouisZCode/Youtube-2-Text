@@ -8,27 +8,31 @@ import { ClipboardIcon, DownloadIcon, CheckIcon } from "./icons";
 
 function useTypewriter(text: string, charsPerFrame = 2): string {
   const [displayed, setDisplayed] = useState("");
-  const indexRef = useRef(0);
+  const [prevText, setPrevText] = useState(text);
+
+  if (prevText !== text) {
+    setPrevText(text);
+    if (!text.startsWith(displayed)) setDisplayed("");
+  }
 
   useEffect(() => {
-    if (text.length === 0) {
-      indexRef.current = 0;
-      setDisplayed("");
-      return;
-    }
-    if (indexRef.current >= text.length) return;
+    if (displayed.length >= text.length) return;
 
+    let currentIndex = displayed.length;
     let rafId: number;
     const tick = () => {
-      indexRef.current = Math.min(indexRef.current + charsPerFrame, text.length);
-      setDisplayed(text.slice(0, indexRef.current));
-      if (indexRef.current < text.length) {
+      currentIndex = Math.min(currentIndex + charsPerFrame, text.length);
+      setDisplayed(text.slice(0, currentIndex));
+      if (currentIndex < text.length) {
         rafId = requestAnimationFrame(tick);
       }
     };
     rafId = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(rafId);
+    // displayed intentionally excluded — effect uses it as a one-shot starting point;
+    // re-running on every setDisplayed would tear down the RAF mid-tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, charsPerFrame]);
 
   return displayed;

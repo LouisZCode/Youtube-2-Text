@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/context/AuthContext";
 import { createCheckout } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -13,7 +12,6 @@ interface PremiumGateModalProps {
 }
 
 export default function PremiumGateModal({ loggedIn, onCancel, reason }: PremiumGateModalProps) {
-  const { user } = useAuth();
   const [loading, setLoading] = useState<"monthly" | "yearly" | "lifetime" | null>(null);
   const [error, setError] = useState<string | null>(null);
 

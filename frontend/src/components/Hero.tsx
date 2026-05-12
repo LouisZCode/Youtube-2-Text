@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { Mode, ErrorCode } from "@/lib/types";
 import PremiumGateModal from "./PremiumGateModal";
@@ -60,11 +61,12 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
   return (
     <section className="flex flex-col items-center gap-5 text-center">
       <div className="flex items-center gap-3">
-        <img
+        <Image
           src="/tubetext_small.png"
           alt="TubeText logo"
           width={150}
           height={150}
+          priority
           className="animate-float"
         />
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
