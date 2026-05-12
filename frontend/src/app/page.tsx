@@ -16,7 +16,15 @@ import { useAuth } from "@/context/AuthContext";
 
 const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
 
-const languages = ["Spanish", "Portuguese", "German", "French"];
+const languages = ["English", "Spanish", "Portuguese", "German", "French"];
+
+const LANG_ISO_TO_NAME: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+  pt: "Portuguese",
+  de: "German",
+  fr: "French",
+};
 
 export default function Home() {
   const { user } = useAuth();
@@ -66,6 +74,17 @@ export default function Home() {
 
     return () => { if (detectTimer.current) clearTimeout(detectTimer.current); };
   }, [url]);
+
+  const sourceName = detectedLang
+    ? (LANG_ISO_TO_NAME[detectedLang.split("-")[0]] ?? null)
+    : null;
+  const availableLanguages = sourceName
+    ? languages.filter((l) => l !== sourceName)
+    : languages;
+
+  if (sourceName && language === sourceName) {
+    setLanguage(availableLanguages[0]);
+  }
 
   function handleApiError(err: unknown) {
     const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -200,7 +219,7 @@ export default function Home() {
             {(mode === "transcription" || mode === "pro") && !loading && (
               <PremiumUpsell
                 language={language}
-                languages={languages}
+                languages={availableLanguages}
                 onLanguageChange={setLanguage}
                 onDownloadPdf={() => result && downloadPdf(result.segments, result.video_id)}
                 onSummary={handleSummary}
