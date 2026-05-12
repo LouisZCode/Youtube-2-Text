@@ -16,15 +16,13 @@ import { useAuth } from "@/context/AuthContext";
 
 const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
 
-const languages = ["English", "Spanish", "Portuguese", "German", "French"];
-
-const LANG_ISO_TO_NAME: Record<string, string> = {
-  en: "English",
-  es: "Spanish",
-  pt: "Portuguese",
-  de: "German",
-  fr: "French",
-};
+const ALL_LANGUAGES: Array<{ code: string; name: string }> = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "pt", name: "Portuguese" },
+  { code: "de", name: "German" },
+  { code: "fr", name: "French" },
+];
 
 export default function Home() {
   const { user } = useAuth();
@@ -35,7 +33,7 @@ export default function Home() {
   const [result, setResult] = useState<TranscriptResult | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [translation, setTranslation] = useState<string | null>(null);
-  const [language, setLanguage] = useState("Spanish");
+  const [language, setLanguage] = useState("es");
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [isLimitError, setIsLimitError] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
@@ -75,15 +73,13 @@ export default function Home() {
     return () => { if (detectTimer.current) clearTimeout(detectTimer.current); };
   }, [url]);
 
-  const sourceName = detectedLang
-    ? (LANG_ISO_TO_NAME[detectedLang.split("-")[0]] ?? null)
-    : null;
-  const availableLanguages = sourceName
-    ? languages.filter((l) => l !== sourceName)
-    : languages;
+  const sourceCode = detectedLang ? detectedLang.split("-")[0] : null;
+  const availableLanguages = sourceCode
+    ? ALL_LANGUAGES.filter((l) => l.code !== sourceCode)
+    : ALL_LANGUAGES;
 
-  if (sourceName && language === sourceName) {
-    setLanguage(availableLanguages[0]);
+  if (sourceCode && language === sourceCode) {
+    setLanguage(availableLanguages[0].code);
   }
 
   function handleApiError(err: unknown) {

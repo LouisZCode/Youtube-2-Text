@@ -7,7 +7,7 @@ import PremiumGateModal from "./PremiumGateModal";
 
 interface PremiumUpsellProps {
   language: string;
-  languages: string[];
+  languages: Array<{ code: string; name: string }>;
   onLanguageChange: (language: string) => void;
   onDownloadPdf: () => void;
   onSummary: () => void;
@@ -137,8 +137,8 @@ export default function PremiumUpsell({
               className="h-9 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-yt-red"
             >
               {languages.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang}
+                <option key={lang.code} value={lang.code}>
+                  {lang.name}
                 </option>
               ))}
             </select>

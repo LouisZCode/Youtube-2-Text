@@ -8,6 +8,8 @@ from langchain_openai import ChatOpenAI
 from langfuse import observe, propagate_attributes
 from langfuse.langchain import CallbackHandler
 
+from agents.languages import resolve_language_name
+
 
 def load_prompts():
     """Load all prompts from prompts.yaml file"""
@@ -17,24 +19,6 @@ def load_prompts():
 
 prompts = load_prompts()
 summary_prompt = prompts["SUMMARIZE_PROMPT"]
-
-LANG_ISO_TO_NAME = {
-    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
-    "pt": "Portuguese", "it": "Italian", "ja": "Japanese", "ko": "Korean",
-    "zh": "Chinese", "zh-Hans": "Simplified Chinese", "zh-Hant": "Traditional Chinese",
-    "ru": "Russian", "ar": "Arabic", "hi": "Hindi", "nl": "Dutch", "pl": "Polish",
-    "tr": "Turkish", "sv": "Swedish", "vi": "Vietnamese", "th": "Thai",
-    "id": "Indonesian", "uk": "Ukrainian", "cs": "Czech", "ro": "Romanian",
-    "el": "Greek", "hu": "Hungarian", "da": "Danish", "fi": "Finnish",
-    "no": "Norwegian", "he": "Hebrew", "ms": "Malay", "fil": "Filipino",
-}
-
-
-def _resolve_language_name(language: str) -> str:
-    if language in LANG_ISO_TO_NAME:
-        return LANG_ISO_TO_NAME[language]
-    return LANG_ISO_TO_NAME.get(language.split("-")[0], language)
-
 
 model = ChatOpenAI(
     model=os.getenv("OPENROUTER_SUMMARY_MODEL", "openai/gpt-oss-120b"),
@@ -54,7 +38,7 @@ langfuse_handler = CallbackHandler()
 
 @observe(name="summarize")
 async def summarize(text: str, language: str = "en") -> str:
-    language_name = _resolve_language_name(language)
+    language_name = resolve_language_name(language)
     with propagate_attributes(tags=[f"language:{language}"]):
         response = await model.ainvoke(
             [
