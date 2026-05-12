@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { TranscriptResult, Mode } from "@/lib/types";
 import { downloadPdf } from "@/lib/api";
 import { ClipboardIcon, DownloadIcon, CheckIcon } from "./icons";
@@ -47,30 +49,27 @@ interface OutputCardProps {
   elapsedSeconds?: number | null;
 }
 
-function FormattedSummary({ text }: { text: string }) {
-  const lines = text.split("\n");
-  return (
-    <div className="space-y-2 text-base leading-relaxed">
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (!trimmed) return null;
-        if (trimmed.startsWith("- ")) {
-          return (
-            <div key={i} className="flex gap-2 pl-1">
-              <span className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-yt-red" />
-              <span>{trimmed.slice(2)}</span>
-            </div>
-          );
-        }
-        return (
-          <p key={i} className="font-bold text-text-secondary">
-            {trimmed}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
+const summaryComponents: Components = {
+  h1: (props) => <h2 className="text-lg font-bold mt-4 mb-2 first:mt-0" {...props} />,
+  h2: (props) => <h2 className="text-lg font-bold mt-4 mb-2 first:mt-0" {...props} />,
+  h3: (props) => <h3 className="text-base font-bold mt-3 mb-1.5" {...props} />,
+  p:  (props) => <p className="my-2 leading-relaxed" {...props} />,
+  ul: (props) => <ul className="my-2 space-y-1.5" {...props} />,
+  ol: (props) => <ol className="my-2 list-decimal pl-6 space-y-1.5" {...props} />,
+  li: ({ children, ...props }) => (
+    <li className="flex gap-2 pl-1" {...props}>
+      <span className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-yt-red" />
+      <span>{children}</span>
+    </li>
+  ),
+  strong: (props) => <strong className="font-bold text-yt-red" {...props} />,
+  em:     (props) => <em className="italic" {...props} />,
+  code:   (props) => <code className="rounded bg-border/40 px-1 py-0.5 text-sm font-mono" {...props} />,
+  table:  (props) => <table className="my-3 w-full border-collapse text-sm" {...props} />,
+  th:     (props) => <th className="border border-border px-2 py-1 text-left font-bold" {...props} />,
+  td:     (props) => <td className="border border-border px-2 py-1" {...props} />,
+  a:      (props) => <a className="text-yt-red underline" target="_blank" rel="noopener noreferrer" {...props} />,
+};
 
 export default function OutputCard({ result, mode, loading, summary, translation, elapsedSeconds }: OutputCardProps) {
   const [copied, setCopied] = useState(false);
@@ -187,7 +186,11 @@ export default function OutputCard({ result, mode, loading, summary, translation
       >
         {isLlmMode ? (
           isSummaryMode ? (
-            <FormattedSummary text={visibleLlmText} />
+            <div className="text-base leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={summaryComponents}>
+                {visibleLlmText}
+              </ReactMarkdown>
+            </div>
           ) : (
             <div className="whitespace-pre-wrap text-base leading-relaxed">
               {visibleLlmText}
