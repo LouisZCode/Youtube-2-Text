@@ -9,6 +9,7 @@ import Hero from "@/components/Hero";
 
 const OutputCard = dynamic(() => import("@/components/OutputCard"));
 const PremiumUpsell = dynamic(() => import("@/components/PremiumUpsell"));
+const ActionBar = dynamic(() => import("@/components/ActionBar"));
 const ErrorModal = dynamic(() => import("@/components/ErrorModal"));
 const PremiumGateModal = dynamic(() => import("@/components/PremiumGateModal"));
 const Footer = dynamic(() => import("@/components/Footer"));
@@ -42,7 +43,9 @@ export default function Home() {
   const [detectingLang, setDetectingLang] = useState(false);
   const [langDetectError, setLangDetectError] = useState<{ code: ErrorCode; message: string } | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [summaryLang, setSummaryLang] = useState<string | null>(null);
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const transcriptModeRef = useRef<Mode>("transcription");
 
   // Auto-detect caption language when a valid YouTube URL is entered
   useEffect(() => {
@@ -74,12 +77,24 @@ export default function Home() {
   }, [url]);
 
   const sourceCode = detectedLang ? detectedLang.split("-")[0] : null;
-  const availableLanguages = sourceCode
-    ? ALL_LANGUAGES.filter((l) => l.code !== sourceCode)
-    : ALL_LANGUAGES;
+  // currentCode = the language actually rendered on screen right now.
+  // summary mode: whatever lang the summary was generated in (chain rule may differ from source)
+  // translate mode: the translation target
+  // transcription/pro: source
+  const currentCode = mode === "translate"
+    ? language
+    : mode === "summary" && summaryLang
+      ? summaryLang
+      : sourceCode;
+  const excluded = new Set<string>();
+  if (sourceCode) excluded.add(sourceCode);
+  if (currentCode) excluded.add(currentCode);
+  const availableLanguages = ALL_LANGUAGES.filter((l) => !excluded.has(l.code));
 
-  if (sourceCode && language === sourceCode) {
-    setLanguage(availableLanguages[0].code);
+  // Auto-shift the dropdown when its selected value is no longer in the filtered list.
+  // Guarded out of translate mode (where language === currentCode by design).
+  if (mode !== "translate" && currentCode && language === currentCode) {
+    setLanguage(availableLanguages[0]?.code ?? "en");
   }
 
   function handleApiError(err: unknown) {
@@ -115,6 +130,7 @@ export default function Home() {
     setSummary(null);
     setTranslation(null);
     setElapsed(null);
+    setMode(transcriptModeRef.current);
 
     const start = performance.now();
 
@@ -139,14 +155,22 @@ export default function Home() {
 
   async function handleSummary() {
     if (!result) return;
+    // Chain rule: if viewing a translation, summarize the translated text in target lang.
+    // Otherwise summarize the original transcript in source lang.
+    const useTranslationAsSource = mode === "translate" && !!translation;
+    const sourceText = useTranslationAsSource
+      ? translation!
+      : result.segments.map((s) => s.text).join(" ");
+    const sourceLang = useTranslationAsSource ? language : (detectedLang || "en");
+
     setMode("summary");
+    setSummaryLang(sourceLang);
     setLoading(true);
     setSummary(null);
     setError(null);
     setShowSignIn(false);
     try {
-      const transcription = result.segments.map((s) => s.text).join(" ");
-      const summaryData = await fetchSummary(transcription, detectedLang || "en", sessionId);
+      const summaryData = await fetchSummary(sourceText, sourceLang, sessionId);
       setSummary(summaryData.summary);
     } catch (err) {
       handleApiError(err);
@@ -187,7 +211,12 @@ export default function Home() {
           detectingLang={detectingLang}
           langDetectError={langDetectError}
           onUrlChange={setUrl}
-          onModeChange={setMode}
+          onModeChange={(m) => {
+            if (m === "transcription" || m === "pro") {
+              transcriptModeRef.current = m;
+            }
+            setMode(m);
+          }}
           onSubmit={handleSubmit}
         />
 
@@ -218,6 +247,18 @@ export default function Home() {
                 languages={availableLanguages}
                 onLanguageChange={setLanguage}
                 onDownloadPdf={() => result && downloadPdf(result.segments, result.video_id)}
+                onSummary={handleSummary}
+                onTranslate={handleTranslate}
+                loading={loading}
+              />
+            )}
+
+            {(mode === "summary" || mode === "translate") && !loading && (
+              <ActionBar
+                mode={mode}
+                language={language}
+                languages={availableLanguages}
+                onLanguageChange={setLanguage}
                 onSummary={handleSummary}
                 onTranslate={handleTranslate}
                 loading={loading}
