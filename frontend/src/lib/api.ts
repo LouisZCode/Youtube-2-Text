@@ -171,14 +171,23 @@ export async function fetchCustomerPortal(): Promise<string | null> {
   }
 }
 
-export async function downloadPdf(
-  segments: { timestamp: string; text: string }[],
-  videoId?: string
-): Promise<void> {
+export type PdfPayload =
+  | { kind: "transcript"; segments: Segment[]; videoId?: string }
+  | { kind: "summary"; text: string; videoId?: string }
+  | { kind: "translation"; text: string; language: string; videoId?: string };
+
+export async function downloadPdf(payload: PdfPayload): Promise<void> {
+  const body =
+    payload.kind === "transcript"
+      ? { kind: "transcript", segments: payload.segments, video_id: payload.videoId }
+      : payload.kind === "summary"
+        ? { kind: "summary", text: payload.text, video_id: payload.videoId }
+        : { kind: "translation", text: payload.text, language: payload.language, video_id: payload.videoId };
+
   const res = await fetch(`${API_URL}/video/pdf/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ segments, video_id: videoId }),
+    body: JSON.stringify(body),
     credentials: "include",
   });
 
@@ -188,7 +197,7 @@ export async function downloadPdf(
 
   const disposition = res.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="?([^"]+)"?/);
-  const filename = match?.[1] || "transcript.pdf";
+  const filename = match?.[1] || "tubetext.pdf";
 
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

@@ -117,7 +117,7 @@ export default function OutputCard({ result, mode, loading, summary, translation
   });
 
   async function handleDownload() {
-    await downloadPdf(result.segments, result.video_id);
+    await downloadPdf({ kind: "transcript", segments: result.segments, videoId: result.video_id });
   }
 
   return (

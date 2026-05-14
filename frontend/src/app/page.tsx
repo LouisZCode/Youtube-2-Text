@@ -246,7 +246,7 @@ export default function Home() {
                 language={language}
                 languages={availableLanguages}
                 onLanguageChange={setLanguage}
-                onDownloadPdf={() => result && downloadPdf(result.segments, result.video_id)}
+                onDownloadPdf={() => result && downloadPdf({ kind: "transcript", segments: result.segments, videoId: result.video_id })}
                 onSummary={handleSummary}
                 onTranslate={handleTranslate}
                 loading={loading}
@@ -261,6 +261,13 @@ export default function Home() {
                 onLanguageChange={setLanguage}
                 onSummary={handleSummary}
                 onTranslate={handleTranslate}
+                onDownloadPdf={() => {
+                  if (mode === "summary" && summary) {
+                    downloadPdf({ kind: "summary", text: summary, videoId: result?.video_id });
+                  } else if (mode === "translate" && translation) {
+                    downloadPdf({ kind: "translation", text: translation, language, videoId: result?.video_id });
+                  }
+                }}
                 loading={loading}
               />
             )}
