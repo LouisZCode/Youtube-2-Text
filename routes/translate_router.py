@@ -65,7 +65,7 @@ async def stream_video_translation(
                     "chunks_completed": len(translated_chunks),
                     "translation": " ".join(translated_chunks),
                 })
-                yield f"data: {json.dumps({'done': True})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'trace_id': span.trace_id})}\n\n"
 
     return StreamingResponse(
         event_generator(),

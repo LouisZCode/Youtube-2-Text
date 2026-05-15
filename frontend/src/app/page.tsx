@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TranscriptResult, Mode, ErrorCode } from "@/lib/types";
+import { TranscriptResult, Mode, ErrorCode, FeedbackName } from "@/lib/types";
 import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf, fetchLanguages } from "@/lib/api";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
@@ -12,7 +12,10 @@ const PremiumUpsell = dynamic(() => import("@/components/PremiumUpsell"));
 const ActionBar = dynamic(() => import("@/components/ActionBar"));
 const ErrorModal = dynamic(() => import("@/components/ErrorModal"));
 const PremiumGateModal = dynamic(() => import("@/components/PremiumGateModal"));
+const FeedbackCard = dynamic(() => import("@/components/FeedbackCard"));
 const Footer = dynamic(() => import("@/components/Footer"));
+
+const FEEDBACK_SAMPLE_RATE = 0.10;
 import { useAuth } from "@/context/AuthContext";
 
 const YT_URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/;
@@ -44,8 +47,30 @@ export default function Home() {
   const [langDetectError, setLangDetectError] = useState<{ code: ErrorCode; message: string } | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [summaryLang, setSummaryLang] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState<{
+    traceId: string;
+    name: FeedbackName;
+    surfaceLabel: "transcript" | "summary" | "translation";
+  } | null>(null);
   const detectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptModeRef = useRef<Mode>("transcription");
+
+  function maybeOpenFeedback(
+    traceId: string | undefined,
+    name: FeedbackName,
+    surfaceLabel: "transcript" | "summary" | "translation",
+  ) {
+    if (!traceId) return;
+    if (Math.random() < FEEDBACK_SAMPLE_RATE) {
+      setFeedbackOpen({ traceId, name, surfaceLabel });
+    }
+  }
+
+  function feedbackMatchesMode(fbName: FeedbackName, m: Mode): boolean {
+    if (fbName === "transcript-thumbs") return m === "transcription" || m === "pro";
+    if (fbName === "summary-thumbs") return m === "summary";
+    return m === "translate";
+  }
 
   // Auto-detect caption language when a valid YouTube URL is entered
   useEffect(() => {
@@ -130,6 +155,7 @@ export default function Home() {
     setSummary(null);
     setTranslation(null);
     setElapsed(null);
+    setFeedbackOpen(null);
     setMode(transcriptModeRef.current);
 
     const start = performance.now();
@@ -146,6 +172,7 @@ export default function Home() {
 
       setElapsed(Math.round((performance.now() - start) / 1000 * 10) / 10);
       setResult(data);
+      maybeOpenFeedback(data.trace_id, "transcript-thumbs", "transcript");
     } catch (err) {
       handleApiError(err);
     } finally {
@@ -169,9 +196,11 @@ export default function Home() {
     setSummary(null);
     setError(null);
     setShowSignIn(false);
+    setFeedbackOpen(null);
     try {
       const summaryData = await fetchSummary(sourceText, sourceLang, sessionId);
       setSummary(summaryData.summary);
+      maybeOpenFeedback(summaryData.trace_id, "summary-thumbs", "summary");
     } catch (err) {
       handleApiError(err);
     } finally {
@@ -186,10 +215,12 @@ export default function Home() {
     setTranslation("");
     setError(null);
     setShowSignIn(false);
+    setFeedbackOpen(null);
     try {
-      await fetchTranslationStream(result.segments, language, (chunk) => {
+      const { trace_id } = await fetchTranslationStream(result.segments, language, (chunk) => {
         setTranslation((prev) => (prev || "") + chunk + "\n\n");
       }, sessionId);
+      maybeOpenFeedback(trace_id, "translation-thumbs", "translation");
     } catch (err) {
       handleApiError(err);
     } finally {
@@ -240,6 +271,15 @@ export default function Home() {
               translation={translation}
               elapsedSeconds={elapsed}
             />
+
+            {feedbackOpen && !loading && feedbackMatchesMode(feedbackOpen.name, mode) && (
+              <FeedbackCard
+                traceId={feedbackOpen.traceId}
+                name={feedbackOpen.name}
+                surfaceLabel={feedbackOpen.surfaceLabel}
+                onClose={() => setFeedbackOpen(null)}
+              />
+            )}
 
             {(mode === "transcription" || mode === "pro") && !loading && (
               <PremiumUpsell

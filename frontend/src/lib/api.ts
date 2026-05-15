@@ -1,4 +1,4 @@
-import { TranscriptResponse, SummaryResponse, Segment, TranslateChunkEvent, ErrorCode } from "./types";
+import { TranscriptResponse, SummaryResponse, Segment, TranslateChunkEvent, ErrorCode, FeedbackName } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -109,7 +109,7 @@ export async function fetchTranslationStream(
   language: string,
   onChunk: (text: string) => void,
   sessionId?: string | null,
-): Promise<void> {
+): Promise<{ trace_id?: string }> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (sessionId) headers["X-Session-Id"] = sessionId;
   const res = await fetch(`${API_URL}/video/translate`, {
@@ -139,10 +139,25 @@ export async function fetchTranslationStream(
       if (!line.startsWith("data: ")) continue;
       const event: TranslateChunkEvent = JSON.parse(line.slice(6));
       if (event.error) throw new Error(event.error);
-      if (event.done) return;
+      if (event.done) return { trace_id: event.trace_id };
       if (event.translation) onChunk(event.translation);
     }
   }
+  return {};
+}
+
+export async function submitFeedback(payload: {
+  trace_id: string;
+  name: FeedbackName;
+  value: 0 | 1;
+  comment?: string;
+}): Promise<void> {
+  await fetch(`${API_URL}/video/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
 }
 
 export async function createCheckout(plan: "monthly" | "yearly" | "lifetime"): Promise<string> {

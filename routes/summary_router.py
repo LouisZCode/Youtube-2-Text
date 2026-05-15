@@ -53,4 +53,4 @@ async def create_video_summary(
                 "summary_chars": len(summary),
             })
 
-            return {"summary": summary}
+            return {"summary": summary, "trace_id": span.trace_id}

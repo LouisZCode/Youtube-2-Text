@@ -144,4 +144,5 @@ async def get_video_transcript(
                 "language": language,
                 "segments": segments,
                 "word_count": word_count,
+                "trace_id": span.trace_id,
             }

@@ -10,6 +10,7 @@ export interface TranscriptResult {
   language: string;
   segments: Segment[];
   word_count: number;
+  trace_id?: string;
 }
 
 export type ErrorCode = "transient" | "no_captions" | "unavailable" | "bad_input" | "unknown";
@@ -24,6 +25,7 @@ export type TranscriptResponse = TranscriptResult | TranscriptError;
 
 export interface SummaryResponse {
   summary: string;
+  trace_id?: string;
 }
 
 export interface TranslateResponse {
@@ -34,6 +36,9 @@ export interface TranslateChunkEvent {
   translation?: string;
   done?: boolean;
   error?: string;
+  trace_id?: string;
 }
+
+export type FeedbackName = "transcript-thumbs" | "summary-thumbs" | "translation-thumbs";
 
 export type Mode = "transcription" | "pro" | "summary" | "translate";
