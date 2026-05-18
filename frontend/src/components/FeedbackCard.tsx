@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import { FeedbackName } from "@/lib/types";
 import { submitFeedback } from "@/lib/api";
 
@@ -11,13 +12,48 @@ interface FeedbackCardProps {
   onClose: () => void;
 }
 
+const THANKS_DURATION_MS = 2000;
+
+function fireConfettiFrom(el: HTMLElement | null) {
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  confetti({
+    particleCount: 50,
+    spread: 60,
+    startVelocity: 30,
+    ticks: 60,
+    scalar: 0.8,
+    origin: {
+      x: (rect.left + rect.width / 2) / window.innerWidth,
+      y: (rect.top + rect.height / 2) / window.innerHeight,
+    },
+    disableForReducedMotion: true,
+  });
+}
+
 export default function FeedbackCard({ traceId, name, surfaceLabel, onClose }: FeedbackCardProps) {
   const [selected, setSelected] = useState<"up" | "down" | null>(null);
+  const [step, setStep] = useState<"ask" | "thanks">("ask");
   const [comment, setComment] = useState("");
+  const thumbsUpRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  function showThanks() {
+    setStep("thanks");
+    closeTimerRef.current = setTimeout(onClose, THANKS_DURATION_MS);
+  }
 
   function handleThumbsUp() {
     submitFeedback({ trace_id: traceId, name, value: 1 });
-    onClose();
+    setSelected("up");
+    fireConfettiFrom(thumbsUpRef.current);
+    showThanks();
   }
 
   function handleThumbsDown() {
@@ -31,7 +67,15 @@ export default function FeedbackCard({ traceId, name, surfaceLabel, onClose }: F
       value: 0,
       comment: comment.trim() || undefined,
     });
-    onClose();
+    showThanks();
+  }
+
+  if (step === "thanks") {
+    return (
+      <div className="animate-slide-up flex w-full max-w-[800px] items-center justify-center rounded-xl border border-border bg-card p-6 text-sm font-bold">
+        🎉 Thanks for the feedback!
+      </div>
+    );
   }
 
   return (
@@ -40,6 +84,7 @@ export default function FeedbackCard({ traceId, name, surfaceLabel, onClose }: F
         <p className="text-sm font-bold">How was this {surfaceLabel}?</p>
         <div className="flex items-center gap-2">
           <button
+            ref={thumbsUpRef}
             type="button"
             onClick={handleThumbsUp}
             aria-label="Thumbs up"
