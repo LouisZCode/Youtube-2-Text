@@ -16,7 +16,7 @@ TubeText extracts the content that matters. Paste a link, get the full transcrip
 
 - **Transcription** — Extract captions from any YouTube video
 - **Premium Transcription** — Audio-based transcription via Deepgram when captions aren't available
-- **AI Summary** — Get key takeaways powered by OpenAI GPT-4 mini
+- **AI Summary** — Get key takeaways powered by gpt-oss-120b on Cerebras
 - **AI Translation** — Real-time streaming translation to 20+ languages via Cerebras
 - **PDF Export** — Download formatted transcripts as PDF
 - **Auth & Billing** — Google OAuth + Stripe subscriptions (free tier included)
@@ -42,7 +42,7 @@ The app runs as three services on Railway:
 | Backend | FastAPI, Python 3.12, SQLAlchemy (async), Alembic |
 | Database | PostgreSQL (asyncpg) |
 | Auth | Google OAuth + JWT (HTTP-only cookies) |
-| AI | OpenAI, Cerebras, Deepgram |
+| AI | OpenRouter (Cerebras-pinned), Deepgram |
 | Payments | Stripe |
 | Email | Resend |
 | Deployment | Railway (Docker) |
@@ -60,7 +60,7 @@ The app runs as three services on Railway:
 
 ```bash
 cp .env.example .env  # fill in your keys
-pip install .
+uv sync
 uvicorn main:app --reload
 ```
 
