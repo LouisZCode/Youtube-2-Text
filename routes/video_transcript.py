@@ -80,6 +80,7 @@ async def get_video_transcript(
         user.usage_count += 1
         db.add(user)
         await db.commit()
+        await db.refresh(user)
 
     with langfuse.start_as_current_observation(
         name="video-transcript-free", as_type="span"
