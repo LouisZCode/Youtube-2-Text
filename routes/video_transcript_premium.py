@@ -109,7 +109,7 @@ async def get_video_transcript_premium(
 
             try:
                 segments, word_count, duration = await with_retries(
-                    _pipeline, attempts=2, backoff=(3.0,)
+                    _pipeline, attempts=3, backoff=(2.0, 4.0)
                 )
             except Exception as e:
                 sentry_sdk.capture_exception(e)

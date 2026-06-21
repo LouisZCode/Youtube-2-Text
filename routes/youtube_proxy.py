@@ -35,6 +35,11 @@ _YTDLP_TRANSIENT_PATTERNS = (
     "connection reset",
     "remote end closed connection",
     "read timed out",
+    # TLS/connection drops (often the proxy↔YouTube hop). Retrying lets the
+    # Webshare -rotate proxy hand us a fresh IP. Sentry: PYTHON-FASTAPI-C.
+    "ssl:",
+    "unexpected_eof_while_reading",
+    "eof occurred in violation of protocol",
 )
 
 _YTDLP_UNAVAILABLE_PATTERNS = (
