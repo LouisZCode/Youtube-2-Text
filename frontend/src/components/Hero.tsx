@@ -150,6 +150,13 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
           ) : buttonLabel}
         </button>
 
+        {/* TEMP: HD Premium can take a few minutes — reassure the user while it runs */}
+        {loading && mode === "pro" && (
+          <p className="text-sm text-text-secondary text-center -mt-4">
+            This could take some time. Please don&apos;t close this tab and come back in a couple of minutes.
+          </p>
+        )}
+
         {langDetectError && langDetectError.code !== "bad_input" && (
           <p className="text-sm text-text-secondary text-center -mt-4">
             {langDetectError.code === "no_captions"
