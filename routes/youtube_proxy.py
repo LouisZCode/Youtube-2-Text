@@ -40,6 +40,11 @@ _YTDLP_TRANSIENT_PATTERNS = (
     "ssl:",
     "unexpected_eof_while_reading",
     "eof occurred in violation of protocol",
+    # Webshare tunnel failures ("Unable to connect to proxy",
+    # "Tunnel connection failed: 502 Bad Gateway"). Same Sentry issue —
+    # a retry rotates to a healthy proxy node.
+    "unable to connect to proxy",
+    "tunnel connection failed",
 )
 
 _YTDLP_UNAVAILABLE_PATTERNS = (
