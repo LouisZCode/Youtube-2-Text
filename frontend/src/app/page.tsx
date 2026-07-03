@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TranscriptResult, Mode, ErrorCode, FeedbackName } from "@/lib/types";
+import { TranscriptResult, Mode, ErrorCode, FeedbackName, PremiumStatus } from "@/lib/types";
 import { fetchTranscript, fetchTranscriptPremium, fetchSummary, fetchTranslationStream, downloadPdf, fetchLanguages } from "@/lib/api";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
@@ -46,6 +46,7 @@ export default function Home() {
   const [detectingLang, setDetectingLang] = useState(false);
   const [langDetectError, setLangDetectError] = useState<{ code: ErrorCode; message: string } | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [proStatus, setProStatus] = useState<PremiumStatus | null>(null);
   const [summaryLang, setSummaryLang] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState<{
     traceId: string;
@@ -162,7 +163,7 @@ export default function Home() {
 
     try {
       const data = mode === "pro"
-        ? await fetchTranscriptPremium(url, detectedLang || "en", sessionId)
+        ? await fetchTranscriptPremium(url, detectedLang || "en", sessionId, setProStatus)
         : await fetchTranscript(url, detectedLang || "en");
 
       if (!data.success) {
@@ -177,6 +178,7 @@ export default function Home() {
       handleApiError(err);
     } finally {
       setLoading(false);
+      setProStatus(null);
     }
   }
 
@@ -237,6 +239,7 @@ export default function Home() {
           url={url}
           loading={loading}
           mode={mode}
+          proStatus={proStatus}
           detectedLang={detectedLang}
           detectedLangName={detectedLangName}
           detectingLang={detectingLang}

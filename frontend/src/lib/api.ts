@@ -1,4 +1,4 @@
-import { TranscriptResponse, SummaryResponse, Segment, TranslateChunkEvent, ErrorCode, FeedbackName } from "./types";
+import { TranscriptResponse, SummaryResponse, Segment, TranslateChunkEvent, PremiumStatus, PremiumStreamEvent, ErrorCode, FeedbackName } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -67,6 +67,7 @@ export async function fetchTranscriptPremium(
   videoUrl: string,
   language: string = "en",
   sessionId?: string | null,
+  onStatus?: (status: PremiumStatus) => void,
 ): Promise<TranscriptResponse> {
   const params = new URLSearchParams({ video_url: videoUrl, language });
   const headers: Record<string, string> = {};
@@ -79,7 +80,43 @@ export async function fetchTranscriptPremium(
     throw new Error(`Server error: ${res.status}`);
   }
 
-  return res.json();
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data: ")) continue;
+      const event: PremiumStreamEvent = JSON.parse(line.slice(6));
+      if (event.status) {
+        onStatus?.(event.status);
+        continue;
+      }
+      if (event.error) {
+        return { success: false, error: event.error, error_code: event.error_code ?? "unknown" };
+      }
+      if (event.done && event.success) {
+        return {
+          success: true,
+          video_id: event.video_id!,
+          source: event.source ?? "audio_transcription",
+          language: event.language ?? language,
+          segments: event.segments ?? [],
+          word_count: event.word_count ?? 0,
+          trace_id: event.trace_id,
+        };
+      }
+    }
+  }
+
+  // Stream ended without a terminal event — connection dropped mid-run.
+  return { success: false, error: "Connection interrupted — please try again.", error_code: "transient" };
 }
 
 export async function fetchSummary(

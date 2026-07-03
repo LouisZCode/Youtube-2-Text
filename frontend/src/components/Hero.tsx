@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { Mode, ErrorCode } from "@/lib/types";
+import { Mode, ErrorCode, PremiumStatus } from "@/lib/types";
 import PremiumGateModal from "./PremiumGateModal";
 
 interface HeroProps {
   url: string;
   loading: boolean;
   mode: Mode;
+  proStatus?: PremiumStatus | null;
   detectedLang: string | null;
   detectedLangName: string | null;
   detectingLang: boolean;
@@ -33,7 +34,7 @@ const langToFlag: Record<string, string> = {
   he: "\u{1F1EE}\u{1F1F1}", ms: "\u{1F1F2}\u{1F1FE}", fil: "\u{1F1F5}\u{1F1ED}",
 };
 
-export default function Hero({ url, loading, mode, detectedLang, detectedLangName, detectingLang, langDetectError, onUrlChange, onModeChange, onSubmit }: HeroProps) {
+export default function Hero({ url, loading, mode, proStatus, detectedLang, detectedLangName, detectingLang, langDetectError, onUrlChange, onModeChange, onSubmit }: HeroProps) {
   const { user } = useAuth();
   const [showGate, setShowGate] = useState(false);
   const buttonLabel = "GET TRANSCRIPTION";
@@ -150,10 +151,18 @@ export default function Hero({ url, loading, mode, detectedLang, detectedLangNam
           ) : buttonLabel}
         </button>
 
-        {/* TEMP: HD Premium can take a few minutes — reassure the user while it runs */}
+        {/* HD Premium live progress — keeps the user informed during long runs */}
         {loading && mode === "pro" && (
           <p className="text-sm text-text-secondary text-center -mt-4">
-            This could take some time. Please don&apos;t close this tab and come back in a couple of minutes.
+            <span className="font-medium text-foreground">
+              {proStatus?.stage === "downloading"
+                ? `Downloading audio…${proStatus.percent != null ? ` ${proStatus.percent}%` : ""}`
+                : proStatus?.stage === "transcribing"
+                  ? "Transcribing audio…"
+                  : "Checking video…"}
+            </span>
+            <br />
+            Longer videos can take a few minutes — please keep this tab open.
           </p>
         )}
 
