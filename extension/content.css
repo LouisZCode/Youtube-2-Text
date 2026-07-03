@@ -1,0 +1,226 @@
+/* TubeText panel. content.js detects YouTube's theme (html[dark] attribute,
+   with page-background luminance as fallback) and toggles the .tt-dark class,
+   so all dark styling keys off that class. */
+
+#tubetext-panel {
+  font-family: "Roboto", "Arial", sans-serif;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  color: #0f0f0f;
+}
+
+#tubetext-panel.tt-dark {
+  background: #212121;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f1f1f1;
+}
+
+#tubetext-panel .tt-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#tubetext-panel .tt-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+#tubetext-panel .tt-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+#tubetext-panel .tt-auth {
+  margin-left: auto;
+  font-size: 1.2rem;
+  color: #606060;
+}
+
+#tubetext-panel.tt-dark .tt-auth {
+  color: #aaa;
+}
+
+#tubetext-panel .tt-auth.tt-premium {
+  color: #b8860b;
+  font-weight: 500;
+}
+
+#tubetext-panel.tt-dark .tt-auth.tt-premium {
+  color: #e6b34d;
+}
+
+#tubetext-panel .tt-auth a,
+#tubetext-panel .tt-message a,
+#tubetext-panel .tt-footer a {
+  color: #065fd4;
+  text-decoration: none;
+}
+
+#tubetext-panel.tt-dark .tt-auth a,
+#tubetext-panel.tt-dark .tt-message a,
+#tubetext-panel.tt-dark .tt-footer a {
+  color: #3ea6ff;
+}
+
+#tubetext-panel .tt-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#tubetext-panel .tt-btn {
+  font-family: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f0f0f;
+}
+
+#tubetext-panel.tt-dark .tt-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f1f1;
+}
+
+#tubetext-panel .tt-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+#tubetext-panel.tt-dark .tt-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#tubetext-panel .tt-btn.tt-active {
+  background: #0f0f0f;
+  color: #fff;
+}
+
+#tubetext-panel.tt-dark .tt-btn.tt-active {
+  background: #f1f1f1;
+  color: #0f0f0f;
+}
+
+#tubetext-panel .tt-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#tubetext-panel .tt-copy {
+  margin-left: auto;
+}
+
+#tubetext-panel .tt-status {
+  font-size: 1.3rem;
+  color: #606060;
+  padding: 4px 0;
+}
+
+#tubetext-panel.tt-dark .tt-status {
+  color: #aaa;
+}
+
+#tubetext-panel .tt-message {
+  font-size: 1.3rem;
+  color: #606060;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+#tubetext-panel.tt-dark .tt-message {
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#tubetext-panel .tt-result {
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 1.3rem;
+  line-height: 1.5;
+  padding-right: 4px;
+}
+
+#tubetext-panel .tt-segment {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+#tubetext-panel .tt-timestamp {
+  font-family: inherit;
+  font-size: 1.2rem;
+  color: #065fd4;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 52px;
+  text-align: left;
+}
+
+#tubetext-panel.tt-dark .tt-timestamp {
+  color: #3ea6ff;
+}
+
+#tubetext-panel .tt-timestamp:hover {
+  text-decoration: underline;
+}
+
+/* --- rendered summary markdown --- */
+
+#tubetext-panel .tt-md-h {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+#tubetext-panel .tt-summary > .tt-md-h:first-child {
+  margin-top: 0;
+}
+
+#tubetext-panel .tt-md-p {
+  margin: 6px 0;
+}
+
+#tubetext-panel .tt-md-list {
+  margin: 6px 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+#tubetext-panel .tt-md-list li {
+  margin: 3px 0;
+}
+
+#tubetext-panel .tt-md-nested {
+  margin-left: 16px;
+  list-style: circle;
+}
+
+#tubetext-panel .tt-summary code {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+#tubetext-panel.tt-dark .tt-summary code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#tubetext-panel .tt-footer {
+  margin-top: 10px;
+  font-size: 1.2rem;
+}
