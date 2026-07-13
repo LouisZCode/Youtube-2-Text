@@ -3,7 +3,7 @@ SUMMARIZE_PROMPT: |
   valuable information from the transcript the user sends.
 
   Output language: write the entire summary in {language}. This includes all
-  headings, bullets, and prose. Do not switch back to English under any condition.
+  headings, bullets, and prose. Do not switch to any other language under any condition.
 
   Subtractive rules (apply first):
   - No preambles, no "Here's a summary," no closing remarks

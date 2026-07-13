@@ -9,8 +9,10 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from langfuse import get_client, propagate_attributes
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import NoTranscriptFound
 from youtube_transcript_api.proxies import WebshareProxyConfig
 
+from agents.languages import resolve_language_name
 from database import get_db
 from dependencies.auth import get_current_user
 
@@ -26,6 +28,38 @@ COOKIE_SECRET_KEY = os.getenv("COOKIE_SECRET_KEY")
 router = APIRouter()
 
 serializer = URLSafeSerializer(COOKIE_SECRET_KEY)
+
+
+def _no_captions_message(exc: BaseException, requested_language: str) -> str | None:
+    """Build a richer no-captions message listing the languages that DO have
+    captions, from the TranscriptList that NoTranscriptFound carries.
+
+    Returns None when nothing better than the generic USER_MESSAGES text can
+    be built (wrong exception type, no transcript data, or empty list).
+    """
+    if not isinstance(exc, NoTranscriptFound):
+        return None
+    transcript_list = getattr(exc, "_transcript_data", None)
+    if transcript_list is None:
+        return None
+    try:
+        names: list[str] = []
+        seen: set[str] = set()
+        for t in transcript_list:  # yields Transcript objects
+            label = getattr(t, "language", None) or getattr(t, "language_code", None)
+            if label and label not in seen:
+                seen.add(label)
+                names.append(label)
+    except Exception:  # private library API — never let message-building fail the route
+        return None
+    if not names:
+        return None
+    requested = resolve_language_name(requested_language)
+    hint = "that language" if len(names) == 1 else "one of those languages"
+    return (
+        f"No {requested} captions for this video — captions are available in: "
+        f"{', '.join(names)}. Try selecting {hint}."
+    )
 
 
 @router.post("/video/")
@@ -116,15 +150,29 @@ async def get_video_transcript(
             try:
                 transcript = await with_retries(_fetch)
             except Exception as e:
-                sentry_sdk.capture_exception(e)
                 code = classify_youtube_error(e)
-                logger.warning("video_transcript failed for %s: %s", video_url, type(e).__name__)
+                if code in ("no_captions", "bad_input"):
+                    # Expected outcome of user input (e.g. asking for English
+                    # captions on a Hindi-only video) — keep a log trail but
+                    # don't page Sentry. Sentry: PYTHON-FASTAPI-D.
+                    logger.info(
+                        "video_transcript %s for %s: %s", code, video_url, type(e).__name__
+                    )
+                else:
+                    sentry_sdk.capture_exception(e)
+                    logger.warning(
+                        "video_transcript failed for %s: %s", video_url, type(e).__name__
+                    )
                 span.update(level="ERROR", status_message=f"{code}: {type(e).__name__}")
                 if user and user.tier != "premium" and code == "transient":
                     user.usage_count = max(0, user.usage_count - 1)
                     db.add(user)
                     await db.commit()
                     await db.refresh(user)
+                if code == "no_captions":
+                    enriched = _no_captions_message(e, language)
+                    if enriched:
+                        return error_response(e, error=enriched)
                 return error_response(e)
 
             snippets = transcript.snippets
