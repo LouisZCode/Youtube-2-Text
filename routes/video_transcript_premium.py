@@ -34,6 +34,17 @@ class VideoTooLongError(Exception):
         super().__init__(f"{duration_minutes:.0f}min exceeds {MAX_VIDEO_MINUTES}min limit")
 
 
+class NoSpeechDetectedError(Exception):
+    """Raised when Deepgram (nova-3, and the whisper-large fallback) both
+    come back with ~zero transcribed words for audio that isn't just a
+    couple seconds long -- there's nothing here for translate/summary to
+    work with, so the route should say so instead of faking a success."""
+
+    def __init__(self, duration_seconds: float):
+        self.duration_seconds = duration_seconds
+        super().__init__(f"no speech detected in {duration_seconds:.0f}s of audio")
+
+
 def _proxy_url() -> str:
     return (
         f"http://{os.getenv('WEBSHARE_PROXY_USERNAME')}-rotate:"
@@ -45,8 +56,26 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
-def _transcribe_with_deepgram(mp3_path: str, language: str) -> tuple[list[dict], int, float]:
-    """Transcribe MP3 file using Deepgram Nova-3."""
+# nova-3 is Deepgram's best/fastest model for normal speech, but local
+# repro confirmed it can silently return ~0 words on sung vocals (worship
+# / music videos with real lyrics) -- one prod video got 0 words, another
+# got 72 words over 294s (density 0.24 words/sec vs ~2 for normal speech).
+# whisper-large handles sung lyrics far better (310 clean words on the
+# same failing file) but is slower/costlier, so it's a fallback, not the
+# default.
+_FALLBACK_MODEL = "whisper-large"
+_FALLBACK_MIN_DURATION_S = 60
+_FALLBACK_MIN_WORDS_PER_SECOND = 0.5
+
+
+def _transcribe_with_deepgram(mp3_path: str, language: str) -> dict:
+    """Transcribe MP3 file using Deepgram, falling back from nova-3 to
+    whisper-large when nova-3 looks like it missed the audio entirely.
+
+    Returns a dict with the winning segments/word_count/duration, which
+    model produced them, and the total seconds billed across every
+    Deepgram call made (both calls bill if the fallback fired).
+    """
     api_key = os.getenv("DEEPGRAM_API_KEY")
     if not api_key:
         raise RuntimeError("DEEPGRAM_API_KEY not found in .env")
@@ -56,23 +85,87 @@ def _transcribe_with_deepgram(mp3_path: str, language: str) -> tuple[list[dict],
     with open(mp3_path, "rb") as audio:
         buffer_data = audio.read()
 
-    response = client.listen.v1.media.transcribe_file(
-        request=buffer_data,
+    def _call(model: str) -> tuple[list[dict], int, float]:
+        # "whisper-large" isn't in the SDK's typed model Literal, but the
+        # param type is Union[Literal[...], Any], so Deepgram accepts it
+        # as a passthrough string (verified against deepgram-sdk 5.3.2).
+        response = client.listen.v1.media.transcribe_file(
+            request=buffer_data,
+            model=model,
+            smart_format=True,
+            punctuate=True,
+            utterances=True,
+            language=language,
+        )
+        segments = merge_segments(response.results.utterances)
+        full_text = response.results.channels[0].alternatives[0].transcript
+        word_count = len(full_text.split())
+        duration = float(response.metadata.duration)
+        return segments, word_count, duration
+
+    # Nested under the ambient "video-transcript-premium" span: both
+    # asyncio.create_task (at task creation) and asyncio.to_thread (at the
+    # call site) copy the current contextvars context, so the OTel span
+    # context set by event_generator's `with langfuse.start_as_current_
+    # observation(...)` propagates into this worker thread. Opening the
+    # generation here -- instead of after the whole pipeline finishes --
+    # gives it real start/end wall-clock timing instead of start==end.
+    # Verified empirically: a span opened in an outer asyncio task and a
+    # generation opened inside asyncio.to_thread(...) share the same
+    # trace_id and parent/child span_ids.
+    with langfuse.start_as_current_observation(
+        name="deepgram-transcribe",
+        as_type="generation",
         model="nova-3",
-        smart_format=True,
-        punctuate=True,
-        utterances=True,
-        language=language,
-    )
+        input={"language": language, "audio_format": "mp3"},
+    ) as generation:
+        segments, word_count, duration = _call("nova-3")
+        model_used = "nova-3"
+        calls_made = 1
 
-    utterances = response.results.utterances
-    segments = merge_segments(utterances)
+        words_per_second = (word_count / duration) if duration else 0.0
+        needs_fallback = word_count == 0 or (
+            duration >= _FALLBACK_MIN_DURATION_S
+            and words_per_second < _FALLBACK_MIN_WORDS_PER_SECOND
+        )
 
-    full_text = response.results.channels[0].alternatives[0].transcript
-    word_count = len(full_text.split())
-    duration = float(response.metadata.duration)
+        if needs_fallback:
+            fb_segments, fb_word_count, fb_duration = _call(_FALLBACK_MODEL)
+            calls_made += 1
+            if fb_word_count > word_count:
+                segments, word_count, duration = fb_segments, fb_word_count, fb_duration
+                model_used = _FALLBACK_MODEL
 
-    return segments, word_count, duration
+        billed_seconds = duration * calls_made
+        # Single env rate applied regardless of which model won -- a
+        # knowing simplification. whisper-large's actual per-second
+        # Deepgram rate may differ from nova-3's, but we only track one
+        # DEEPGRAM_PER_SECOND_USD today.
+        cost_usd = round(billed_seconds * DEEPGRAM_PER_SECOND_USD, 6)
+
+        generation.update(
+            model=model_used,
+            output={
+                "word_count": word_count,
+                "segments_count": len(segments),
+                "model": model_used,
+                "fallback_triggered": calls_made > 1,
+            },
+            usage_details={"seconds": int(round(billed_seconds))},
+            cost_details={"input": cost_usd},
+        )
+
+    if word_count == 0 and duration > 10:
+        raise NoSpeechDetectedError(duration)
+
+    return {
+        "segments": segments,
+        "word_count": word_count,
+        "duration": duration,
+        "model_used": model_used,
+        "billed_seconds": billed_seconds,
+        "cost_usd": cost_usd,
+    }
 
 
 @router.post("/video/premium/")
@@ -175,7 +268,12 @@ async def get_video_transcript_premium(
                         if done:
                             break
                         yield _sse({"status": dict(progress)})
-                    segments, word_count, duration = task.result()
+                    result = task.result()
+                    segments = result["segments"]
+                    word_count = result["word_count"]
+                    duration = result["duration"]
+                    model_used = result["model_used"]
+                    cost_usd = result["cost_usd"]
                 except VideoTooLongError as e:
                     span.update(
                         level="WARNING",
@@ -189,6 +287,20 @@ async def get_video_transcript_premium(
                             f"HD transcription currently supports videos up to "
                             f"{MAX_VIDEO_MINUTES} minutes. Try a shorter video, or Quick mode "
                             f"if the video has captions."
+                        ),
+                    })
+                    return
+                except NoSpeechDetectedError as e:
+                    span.update(
+                        level="WARNING",
+                        status_message=f"no_speech: {e.duration_seconds:.0f}s audio, 0 words",
+                    )
+                    yield _sse({
+                        "success": False,
+                        "error_code": "no_speech",
+                        "error": (
+                            "We couldn't detect any speech or lyrics in this video's audio, "
+                            "so there's nothing to transcribe."
                         ),
                     })
                     return
@@ -208,24 +320,17 @@ async def get_video_transcript_premium(
                     if not task.done():
                         task.cancel()
 
-                cost_usd = round(duration * DEEPGRAM_PER_SECOND_USD, 6)
-
-                with langfuse.start_as_current_observation(
-                    name="deepgram-transcribe",
-                    as_type="generation",
-                    model="nova-3",
-                    input={"language": language, "audio_format": "mp3"},
-                    output={"word_count": word_count, "segments_count": len(segments)},
-                    usage_details={"seconds": int(duration)},
-                    cost_details={"input": cost_usd},
-                ):
-                    pass
+                # The "deepgram-transcribe" generation observation (with real
+                # start/end timing, the winning model, and the honest total
+                # cost across every Deepgram call made) is created inside
+                # _transcribe_with_deepgram, nested under this span.
 
                 span.update(output={
                     "video_id": video_id,
                     "segments_count": len(segments),
                     "word_count": word_count,
                     "audio_duration_seconds": round(duration, 2),
+                    "model": model_used,
                     "cost_usd": cost_usd,
                     "source": "audio_transcription",
                 })
@@ -238,6 +343,7 @@ async def get_video_transcript_premium(
                     "language": language,
                     "segments": segments,
                     "word_count": word_count,
+                    "model": model_used,
                     "trace_id": span.trace_id,
                 })
 
