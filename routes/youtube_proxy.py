@@ -32,6 +32,11 @@ _YTDLP_TRANSIENT_PATTERNS = (
     "rate-limited",
     "http error 429",
     "http error 5",
+    # googlevideo CDN 403 on the media download ("unable to download video
+    # data: HTTP Error 403: Forbidden") after a successful metadata probe —
+    # transient YouTube flagging of the proxy IP; a retry lets the Webshare
+    # -rotate proxy hand us a fresh one. Sentry: PYTHON-FASTAPI-E.
+    "http error 403",
     "connection reset",
     "remote end closed connection",
     "read timed out",

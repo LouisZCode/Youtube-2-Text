@@ -24,7 +24,7 @@ dependencies = [
     "sqlalchemy>=2.0.46",
     "uvicorn>=0.40.0",
     "youtube-transcript-api>=1.2.4",
-    "yt-dlp>=2026.1.31",
+    "yt-dlp>=2026.7.4",
     "langfuse>=4.5.1",
     "sentry-sdk>=2.59.0",
 ]
