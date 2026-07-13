@@ -14,6 +14,7 @@ langfuse = get_client()
 
 router = APIRouter()
 CHUNK_SIZE = 1
+EMPTY_TRANSCRIPT_ERROR = "There's no transcript text to translate."
 
 class Segment(BaseModel):
     timestamp: str
@@ -29,6 +30,42 @@ async def stream_video_translation(
     user=Depends(require_premium),
     x_session_id: str | None = Header(None, alias="X-Session-Id"),
 ):
+    # Reject empty payloads before opening the stream. Without this, zero
+    # segments (e.g. premium transcription found no speech) streamed a
+    # successful empty `done` — a silent no-op shown as "Translating… 0/0".
+    # Clients surface SSE error events verbatim, so the error goes over the
+    # stream rather than as an HTTP 4xx (which they render as a bare status).
+    if not any(seg.text.strip() for seg in request.segments):
+        logger.warning(
+            "Translation requested with no transcript text (segments=%d)",
+            len(request.segments),
+        )
+        with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
+            attrs = {
+                "user_id": str(user.id),
+                "tags": [f"language:{request.language}", "tier:premium"],
+            }
+            if x_session_id:
+                attrs["session_id"] = x_session_id
+            with propagate_attributes(**attrs):
+                span.update(
+                    input={
+                        "language": request.language,
+                        "segments_count": len(request.segments),
+                    },
+                    level="WARNING",
+                    status_message="empty_transcript",
+                )
+
+        async def error_generator():
+            yield f"data: {json.dumps({'error': EMPTY_TRANSCRIPT_ERROR})}\n\n"
+
+        return StreamingResponse(
+            error_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     async def event_generator():
         with langfuse.start_as_current_observation(name="video-translation", as_type="span") as span:
             attrs = {

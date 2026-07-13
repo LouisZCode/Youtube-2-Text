@@ -24,6 +24,13 @@ async def create_video_summary(
     user=Depends(require_premium),
     x_session_id: str | None = Header(None, alias="X-Session-Id"),
 ):
+    # Reject empty transcripts up front (e.g. premium transcription found no
+    # speech) instead of asking the model to summarize nothing. Plain-text
+    # detail (no __PREFIX__) so the frontend routes it to the generic modal.
+    if not request.transcription.strip():
+        logger.warning("Summary requested with no transcript text")
+        raise HTTPException(status_code=400, detail="There's no transcript text to summarize.")
+
     with langfuse.start_as_current_observation(
         name="video-summary", as_type="span"
     ) as span:
