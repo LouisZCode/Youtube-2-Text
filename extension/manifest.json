@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TubeText — YouTube Transcripts & AI Summaries",
-  "version": "0.1.0",
-  "description": "Get the full transcript or an AI summary of any YouTube video without leaving the watch page. Powered by tubetext.app.",
+  "version": "0.2.0",
+  "description": "Get the full transcript, an AI summary, or a translation of any YouTube video without leaving the watch page. Powered by tubetext.app.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

@@ -70,8 +70,54 @@
 
 #tubetext-panel .tt-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+#tubetext-panel .tt-lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#tubetext-panel .tt-lang-label {
+  font-size: 1.3rem;
+  color: #606060;
+}
+
+#tubetext-panel.tt-dark .tt-lang-label {
+  color: #aaa;
+}
+
+#tubetext-panel .tt-lang {
+  font-family: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f0f0f;
+  max-width: 110px;
+}
+
+#tubetext-panel.tt-dark .tt-lang {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f1f1;
+}
+
+#tubetext-panel.tt-dark .tt-lang option {
+  background: #212121;
+  color: #f1f1f1;
+}
+
+#tubetext-panel .tt-lang:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 #tubetext-panel .tt-btn {

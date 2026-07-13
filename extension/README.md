@@ -1,8 +1,9 @@
 # TubeText Chrome Extension
 
-Injects a TubeText panel on YouTube watch pages: full transcript and AI
-summary without leaving the video, powered by the production API at
-`api.tubetext.app`.
+Injects a TubeText panel on YouTube watch pages: full transcript, AI
+summary, and translation (English/Spanish/Portuguese/German/French via the
+language dropdown) without leaving the video, powered by the production API
+at `api.tubetext.app`.
 
 ## Architecture
 
@@ -27,7 +28,8 @@ summary without leaving the video, powered by the production API at
 | Auth state | `GET /auth/me` | 401 → signed out |
 | Language detect | `GET /video/languages` | best-effort, falls back to `en` |
 | Transcript | `POST /video/` | anonymous (5), free (20/mo), premium |
-| Summary | `POST /video/summary` | premium-only (401/403 → sign-in/upgrade CTA) |
+| Summary | `POST /video/summary` | premium-only (401/403 → sign-in/upgrade CTA); `language` in the body controls the summary's output language |
+| Translation | `POST /video/translate` | premium-only SSE stream, one event per segment; consumed in `background.js` over a `chrome.runtime.connect` port so the panel renders progressively |
 
 ## Load for development
 

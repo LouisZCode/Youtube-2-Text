@@ -72,6 +72,77 @@ async function getTranscript(videoUrl) {
   return res.json();
 }
 
+// Translation streams over a long-lived port instead of sendMessage: the
+// endpoint is SSE with one event per transcript segment, and the content
+// script renders each chunk as it arrives. Disconnecting the port (user
+// navigated away) aborts the fetch so the backend stops translating.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "translate") return;
+  const controller = new AbortController();
+  port.onDisconnect.addListener(() => controller.abort());
+  port.onMessage.addListener((msg) => {
+    streamTranslation(msg.segments, msg.language, port, controller.signal);
+  });
+});
+
+async function streamTranslation(segments, language, port, signal) {
+  const post = (m) => {
+    try {
+      port.postMessage(m);
+    } catch {
+      // port closed — nothing to report to
+    }
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/video/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ segments, language }),
+      credentials: "include",
+      signal,
+    });
+
+    if (res.status === 401) return post({ type: "error", error_code: "auth" });
+    if (res.status === 403) return post({ type: "error", error_code: "premium" });
+    if (!res.ok) {
+      return post({
+        type: "error",
+        error_code: "unknown",
+        error: `TubeText error (${res.status}). Please try again.`,
+      });
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data: ")) continue;
+        const event = JSON.parse(line.slice(6));
+        if (event.error) return post({ type: "error", error_code: "unknown", error: event.error });
+        if (event.done) return post({ type: "done", trace_id: event.trace_id });
+        if (event.translation !== undefined) post({ type: "chunk", text: event.translation });
+      }
+    }
+    // Stream closed without a done/error event.
+    post({ type: "error", error_code: "network", error: "Translation ended unexpectedly. Please try again." });
+  } catch {
+    if (signal.aborted) return;
+    post({
+      type: "error",
+      error_code: "network",
+      error: "Couldn't reach TubeText. Check your connection and try again.",
+    });
+  }
+}
+
 async function getSummary(transcription, language) {
   const res = await fetch(`${API_URL}/video/summary`, {
     method: "POST",
@@ -82,6 +153,13 @@ async function getSummary(transcription, language) {
 
   if (res.status === 401) return { success: false, error_code: "auth" };
   if (res.status === 403) return { success: false, error_code: "premium" };
+  if (res.status === 400) {
+    // e.g. "There's no transcript text to summarize." — content.js already
+    // guards against sending an empty transcript, but surface the backend's
+    // own message if this is ever hit anyway (see routes/summary_router.py).
+    const body = await res.json().catch(() => ({}));
+    return { success: false, error_code: "invalid", error: body.detail || "Nothing to summarize." };
+  }
   if (!res.ok) {
     return {
       success: false,
