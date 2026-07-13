@@ -1,5 +1,5 @@
 #  uvicorn main:app --reload
-# cd frontend   npm run dev
+# cd frontend 
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
