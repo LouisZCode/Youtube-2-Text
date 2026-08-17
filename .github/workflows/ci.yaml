@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  look-around:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Before checkout
+        run: |
+          echo "Working directory"
+          pwd
+          echo "Contents:"
+          ls -la
+          echo "Python available: $(python3 --version)"
+
+      - name: Check out the repo
+        uses: actions/checkout@v7
+
+      - name: After checkout
+        run: |
+          echo "Contents now:"
+          ls -la
+          echo "Commit: $GITHUB_SHA"
+          echo "Ref: $GITHUB_REF"
+          echo "Event that triggered this: $GITHUB_EVENT_NAME"
