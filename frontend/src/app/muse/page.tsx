@@ -30,9 +30,9 @@ const TOOLS = [
 ];
 
 const EXAMPLES = [
-  "What are Fireship's latest videos about?",
-  "Summarize this video for me: https://www.youtube.com/watch?v=…",
-  "Translate this video's transcript to Spanish: https://www.youtube.com/watch?v=…",
+  "What are the most relevant videos about Meta Muse right now?",
+  "Tell me about Fireship's last 5 videos.",
+  "Summarize the latest videos on AI coding agents.",
 ];
 
 export default function MusePage() {
