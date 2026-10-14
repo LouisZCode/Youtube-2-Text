@@ -26,6 +26,7 @@ export async function logoutUser(): Promise<void> {
 export interface VideoLanguage {
   code: string;
   name: string;
+  generated?: boolean;
 }
 
 export async function fetchLanguages(

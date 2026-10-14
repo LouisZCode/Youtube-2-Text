@@ -39,9 +39,36 @@ async def get_video_languages(video_url: str):
         logger.warning("language_detect failed for %s: %s", video_url, type(e).__name__)
         return error_response(e, languages=[], default=None)
 
-    languages = [{"code": t.language_code, "name": t.language} for t in transcript_list]
+    languages = [
+        {"code": t.language_code, "name": t.language, "generated": t.is_generated}
+        for t in transcript_list
+    ]
+
+    def _is_english(code: str) -> bool:
+        return code == "en" or code.startswith("en-")
+
+    # Default chain (LANG-001): YouTube returns auto-generated tracks
+    # alphabetically (ar first), so blind languages[0] mistook Arabic
+    # auto-translations for the source language on English videos.
+    # Prefer English when present, keep autodetect otherwise:
+    # 1. manual English, 2. first manual, 3. auto English, 4. first track.
+    manual = [lang for lang, t in zip(languages, transcript_list) if not t.is_generated]
+    default = None
+    for lang in manual:
+        if _is_english(lang["code"]):
+            default = lang["code"]
+            break
+    if default is None and manual:
+        default = manual[0]["code"]
+    if default is None:
+        for lang in languages:
+            if _is_english(lang["code"]):
+                default = lang["code"]
+                break
+    if default is None and languages:
+        default = languages[0]["code"]
     return {
         "success": True,
         "languages": languages,
-        "default": languages[0]["code"] if languages else None,
+        "default": default,
     }
