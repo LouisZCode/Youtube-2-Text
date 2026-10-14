@@ -5,6 +5,12 @@ import socket
 
 import requests
 from urllib3.exceptions import MaxRetryError
+
+try:
+    import httpx
+    _HTTPX_TIMEOUTS = (httpx.TimeoutException,)  # ReadTimeout, ConnectTimeout, ...
+except ImportError:  # httpx comes via deepgram-sdk; classifier must not break without it
+    _HTTPX_TIMEOUTS = ()
 from youtube_transcript_api._errors import (
     AgeRestricted,
     InvalidVideoId,
@@ -95,6 +101,12 @@ def classify_youtube_error(exc: BaseException) -> ErrorCode:
     if isinstance(exc, YouTubeRequestFailed):
         return "transient"
     if isinstance(exc, (MaxRetryError, requests.exceptions.RequestException, socket.timeout)):
+        return "transient"
+    if isinstance(exc, TimeoutError) or (_HTTPX_TIMEOUTS and isinstance(exc, _HTTPX_TIMEOUTS)):
+        # PREMIUM-002 ReadTimeout on a ~40min video (trace 5162a119):
+        # Deepgram speaks httpx, not requests, so its timeouts fell through
+        # to "unknown" and disabled with_retries. socket.timeout is already
+        # a TimeoutError alias since 3.10 — listed explicitly for clarity.
         return "transient"
     if isinstance(exc, (TranscriptsDisabled, NoTranscriptFound,
                         NotTranslatable, TranslationLanguageNotAvailable)):
